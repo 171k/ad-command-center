@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import base64
 import json
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from .. import auth, db
 from ..config import Settings, get_settings
 from ..events_bus import publish
+from ..ingest import pcap as pcap_ingest
 from ..security import new_token, token_hash
 from ..soc import normalize
 from ..soc.classify import classify
@@ -95,6 +97,66 @@ async def ingest_sensor(request: Request, authorization: str | None = Header(def
     _record_ingest_health(len(items))
     _enforce_retention(s)
     return summary
+
+
+@router.get("/ingest/pcap/status")
+async def pcap_status(ctx=_require):
+    return {
+        "tshark_available": pcap_ingest.tshark_available(),
+        "note": ("tshark is installed; PCAP uploads will be parsed for HTTP transactions."
+                 if pcap_ingest.tshark_available() else
+                 "tshark is NOT installed on the server. Install Wireshark/TShark to enable "
+                 "PCAP parsing (see Setup). Suricata EVE and access-log ingestion still work."),
+    }
+
+
+@router.post("/ingest/pcap")
+async def ingest_pcap(file: UploadFile = File(...), s: Settings = Depends(get_settings), ctx=_require):
+    """Upload a PCAP/PCAPNG; extract HTTP transactions via tshark and correlate.
+
+    We do not load the whole capture into memory as events — tshark streams the
+    HTTP records. TLS note: encrypted HTTPS bodies are not visible from PCAP alone.
+    """
+    import os
+    import tempfile
+
+    head = await file.read(8)
+    if not pcap_ingest.validate_magic(head):
+        raise HTTPException(400, "Not a valid PCAP/PCAPNG file (bad magic bytes).")
+    if not pcap_ingest.tshark_available():
+        raise HTTPException(503, "tshark is not installed on the server; cannot parse PCAP. "
+                                 "Suricata EVE / access-log ingestion remain available.")
+    # Write to a bounded temp file under the pcap dir.
+    s.pcap_dir.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(s.pcap_dir), suffix=".pcap")
+    total = len(head)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(head)
+            while True:
+                chunk = await file.read(1 << 20)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > s.max_upload_bytes:
+                    raise HTTPException(413, f"PCAP exceeds max upload size ({s.max_upload_bytes} bytes).")
+                f.write(chunk)
+        rows = pcap_ingest.extract_http(Path(tmp))
+        if not rows:
+            return {"ingested": 0, "note": "No HTTP requests found (capture may be encrypted or non-HTTP)."}
+        items = [(normalize.from_access_log(r), r) for r in rows[: s.ingest_queue_max]]
+        summary = ingest_batch(items)
+        _record_ingest_health(len(items))
+        _enforce_retention(s)
+        auth.audit("soc.pcap_ingest", f"{file.filename} rows={len(rows)}", ctx)
+        return {**summary, "http_requests": len(rows), "bytes": total}
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def _record_ingest_health(n: int) -> None:

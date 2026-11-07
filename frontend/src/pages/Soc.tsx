@@ -385,8 +385,37 @@ function Sensors() {
     onSuccess: (r: any) => { setToken(r.token); setName(""); qc.invalidateQueries({ queryKey: ["sensors"] }); },
     onError: (e: any) => toast("error", e.message),
   });
+  const { data: pcapSt } = useQuery({ queryKey: ["pcap-status"], queryFn: () => get("/soc/ingest/pcap/status") });
+  const [uploading, setUploading] = useState(false);
+  async function uploadPcap(f: File) {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const m = document.cookie.match(/(?:^|;\s*)adcc_csrf=([^;]+)/);
+      const res = await fetch("/api/soc/ingest/pcap", { method: "POST", credentials: "include", body: fd, headers: { "X-CSRF-Token": m ? decodeURIComponent(m[1]) : "" } });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.detail || "upload failed");
+      qc.invalidateQueries();
+      toast("ok", `Ingested ${j.ingested} events from ${j.http_requests ?? 0} HTTP requests`);
+    } catch (e: any) {
+      toast("error", e.message);
+    } finally { setUploading(false); }
+  }
+
   return (
     <div className="max-w-3xl space-y-4">
+      <Panel title="Upload PCAP" actions={<span className="text-2xs text-ink-faint">{pcapSt?.tshark_available ? "tshark ready" : "tshark missing"}</span>}>
+        <div className="p-3 space-y-2">
+          <p className="text-xs text-ink-dim">{pcapSt?.note}</p>
+          <label className={`btn ${pcapSt?.tshark_available ? "btn-primary" : "opacity-50 pointer-events-none"}`}>
+            <Upload className="h-4 w-4" /> {uploading ? "Uploading…" : "Choose .pcap / .pcapng"}
+            <input type="file" accept=".pcap,.pcapng,.cap" className="hidden" disabled={!pcapSt?.tshark_available || uploading}
+              onChange={(e) => e.target.files?.[0] && uploadPcap(e.target.files[0])} />
+          </label>
+          <p className="text-2xs text-ink-faint">HTTP transactions are extracted with tshark. Encrypted HTTPS bodies are not visible from PCAP alone.</p>
+        </div>
+      </Panel>
       <Panel title="Register sensor">
         <div className="p-3 flex gap-2">
           <input className="input flex-1" placeholder="e.g. edge-suricata-1" value={name} onChange={(e) => setName(e.target.value)} />

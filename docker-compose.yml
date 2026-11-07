@@ -1,0 +1,68 @@
+# A&D Command Center — production-ish compose for a ~4GB / 2 vCPU VPS.
+# Usage:
+#   cp .env.example .env   &&  edit it (set ADCC_SECRET_KEY, DOMAIN)
+#   docker compose up -d --build
+#   docker compose exec backend python -m app.admin set-password
+#
+# Data persists in the named volume `adcc-data`; ordinary deploys do NOT touch it.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_TSHARK: "true"
+    restart: unless-stopped
+    environment:
+      ADCC_ENVIRONMENT: production
+      ADCC_SECRET_KEY: ${ADCC_SECRET_KEY:?set ADCC_SECRET_KEY in .env}
+      ADCC_COOKIE_SECURE: ${ADCC_COOKIE_SECURE:-true}
+      ADCC_MAX_EVENTS: ${ADCC_MAX_EVENTS:-500000}
+      ADCC_EVENT_RETENTION_DAYS: ${ADCC_EVENT_RETENTION_DAYS:-14}
+    volumes:
+      - adcc-data:/data
+    expose:
+      - "8000"
+    # Not published to the host — only the reverse proxy reaches it.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      DOMAIN: ${DOMAIN:-:80}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  adcc-data:
+  caddy-data:
+  caddy-config:

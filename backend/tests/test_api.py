@@ -83,6 +83,16 @@ def test_flag_dedup(auth):
     assert r2.json()["duplicate"] is True
 
 
+def test_pcap_status_and_bad_magic(auth):
+    client, h = auth
+    st = client.get("/api/soc/ingest/pcap/status").json()
+    assert "tshark_available" in st
+    # a non-PCAP upload is rejected on magic bytes
+    r = client.post("/api/soc/ingest/pcap", files={"file": ("x.pcap", b"not a pcap", "application/octet-stream")},
+                    headers=h)
+    assert r.status_code == 400
+
+
 def test_send_offense_to_defense(auth):
     client, h = auth
     events = [{"timestamp": "2026-11-07T10:00:00", "event_type": "http", "src_ip": "9.9.9.9",

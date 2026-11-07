@@ -1,0 +1,37 @@
+# Caddy serves the SPA and reverse-proxies the API to the backend container.
+# Set DOMAIN in the environment for automatic HTTPS; defaults to :80 for local.
+{
+	# Opt out of admin API exposure; keep logs lean.
+	admin off
+}
+
+{$DOMAIN::80} {
+	encode zstd gzip
+
+	# Security headers (CSP allows the SPA's own assets + API calls; fonts optional).
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+
+	# API + SSE -> backend. SSE needs buffering disabled and long timeouts.
+	@api path /api/*
+	handle @api {
+		reverse_proxy backend:8000 {
+			flush_interval -1
+			transport http {
+				read_timeout 0
+			}
+		}
+	}
+
+	# SPA static assets with history-API fallback.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
