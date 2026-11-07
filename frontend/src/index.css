@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+  }
+  ::selection {
+    @apply bg-accent/30;
+  }
+  /* Thin operational scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a3647 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    @apply bg-line-strong rounded;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/60 ring-offset-1 ring-offset-bg;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-bg-raised border border-line rounded-lg;
+  }
+  .well {
+    @apply bg-bg-inset border border-line rounded;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded px-3 h-8 text-sm font-medium
+      border border-line-strong bg-bg-raised text-ink transition-colors
+      hover:bg-bg-hover disabled:opacity-50 disabled:pointer-events-none select-none;
+  }
+  .btn-primary {
+    @apply bg-accent border-accent text-white hover:bg-accent/90;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent hover:bg-bg-hover;
+  }
+  .btn-danger {
+    @apply border-bad/40 text-bad hover:bg-bad/10;
+  }
+  .btn-sm {
+    @apply h-7 px-2 text-xs;
+  }
+  .input {
+    @apply w-full bg-bg-inset border border-line rounded px-2.5 h-8 text-sm text-ink
+      placeholder:text-ink-faint focus:border-accent/60;
+  }
+  .label {
+    @apply text-xs font-medium text-ink-dim mb-1 block;
+  }
+  .mono {
+    @apply font-mono text-[0.8125rem];
+  }
+  .tag {
+    @apply inline-flex items-center gap-1 rounded px-1.5 h-5 text-2xs font-medium border;
+  }
+  .th {
+    @apply text-left text-2xs font-semibold uppercase tracking-wider text-ink-faint px-3 py-2
+      border-b border-line sticky top-0 bg-bg-raised z-10;
+  }
+  .td {
+    @apply px-3 py-1.5 border-b border-line/60 text-sm align-top;
+  }
+  .row-hover tr:hover .td {
+    @apply bg-bg-hover/40;
+  }
+}
