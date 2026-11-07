@@ -1,8 +1,10 @@
 name: Deploy
 
-# Deploys only after CI passes on main. Feature-branch code never reaches
-# production secrets: this runs on the protected main branch using an
-# environment that holds the SSH deploy credentials.
+# Secure deploy: a GitHub-hosted runner joins your private Tailscale tailnet as
+# an EPHEMERAL, tagged node (tag:ci), reaches ONLY the VM's SSH port (enforced by
+# your tailnet ACL), and deploys over that private link. No public SSH rule, no
+# permanent self-hosted runner. Runs only after CI passes on main, gated by the
+# DEPLOY_ENABLED variable, in the protected `production` environment.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -11,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write   # for the Tailscale OAuth exchange
 
 concurrency:
   group: production-deploy
@@ -18,17 +21,22 @@ concurrency:
 
 jobs:
   deploy:
-    # Deploy only when CI succeeded AND the operator has opted in by setting the
-    # repository variable DEPLOY_ENABLED=true (after configuring the VPS + secrets).
-    # This keeps the workflow dormant — not failing — until infrastructure exists.
     if: ${{ github.event.workflow_run.conclusion == 'success' && vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    environment: production   # holds DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY secrets
+    environment: production
     steps:
-      - name: Deploy over SSH (pull + migrate + rolling restart)
+      - name: Connect to tailnet (ephemeral, tag:ci)
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          version: latest
+
+      - name: Deploy over the tailnet (pull + build + health-gate + rollback)
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
+          host: ${{ secrets.DEPLOY_HOST }}        # the VM's tailnet IP (100.x) or MagicDNS name
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
@@ -39,7 +47,6 @@ jobs:
             git reset --hard origin/main
             # The named data volume is never recreated, so operational data survives.
             docker compose up -d --build
-            # Health gate with rollback on failure.
             for i in $(seq 1 20); do
               if curl -fsS http://127.0.0.1/api/health >/dev/null; then
                 echo "healthy"; exit 0
