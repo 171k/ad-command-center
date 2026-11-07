@@ -36,9 +36,25 @@ addresses, captured traffic, and flags. Security is built into the backend.
 ## Execution isolation
 
 - The API process never runs arbitrary user-supplied code.
-- Controlled task execution / exploit runner are **disabled by default** and
-  require `ADCC_ENABLE_TASK_EXECUTION=1` plus a sandboxed runner. Until then the
-  editor, library, downloads, and local utilities remain fully functional.
+- **Local-utility runner** (`app/runner/`): when enabled, it executes **only** a
+  fixed allowlist of local, non-target-facing utilities (hash ID, dictionary
+  check against a small bundled list, wordlist mutation, entropy). It is NOT a
+  general command runner. Controls:
+  - **No shell, ever** — the child is an argv list `[python, -I, <bundled script>]`;
+    arguments are validated against a strict per-task schema and passed as JSON on
+    **stdin**, so nothing attacker-controlled touches a command line.
+  - Only allowlisted scripts run; the resolved path must stay inside `tasks/`.
+  - **Resource limits** (POSIX `setrlimit`): CPU time, address space (memory),
+    max file size, open files, no core dumps; plus a hard wall-clock **timeout**
+    that kills the whole process group, and a **concurrency cap**.
+  - **Scrubbed minimal environment** (no inherited secrets) and a fresh temp CWD.
+  - Output is truncated; every run is recorded in the audit log and executions table.
+- **Target-facing exploitation is intentionally NOT runnable from the web** — it
+  stays manual on Kali.
+- The runner is **disabled by default** (`ADCC_ENABLE_TASK_EXECUTION=1` to enable)
+  and should only be enabled **behind HTTPS**; the UI warns when it is on without
+  HTTPS. Until enabled, the editor, library, downloads, and pure-function
+  utilities remain fully functional.
 - The container runs as a non-root user; the Docker socket is **not** mounted.
 
 ## Network exposure

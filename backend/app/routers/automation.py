@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 from .. import auth, db, nettools, utilsbox
 from ..config import Settings, get_settings
 from ..events_bus import publish
+from ..runner import executor as runner_exec
+from ..runner import registry as runner_registry
 
 router = APIRouter()
 _require = Depends(auth.require_session)
@@ -163,9 +165,40 @@ async def execution_status(s: Settings = Depends(get_settings), ctx=_require):
     return {
         "task_execution_enabled": s.enable_task_execution,
         "scheduled_jobs_enabled": s.enable_scheduled_jobs,
+        "https": s.cookie_secure,
         "reason": (
-            "Controlled task execution is disabled by default. It requires a "
-            "sandboxed runner and explicit operator opt-in (ADCC_ENABLE_TASK_EXECUTION=1). "
-            "The script library, editor, revisions, downloads and local utilities remain fully functional."
+            "Controlled task execution is disabled by default. When enabled "
+            "(ADCC_ENABLE_TASK_EXECUTION=1, recommended only behind HTTPS) it runs ONLY "
+            "the fixed allowlist of local, non-target-facing utilities below — in a "
+            "sandbox (no shell, scrubbed env, CPU/memory/time limits). Target-facing "
+            "exploitation stays manual on Kali. The library, editor, downloads and "
+            "offline utilities work regardless."
         ),
     }
+
+
+# ---------------- Sandboxed local-utility runner (allowlist only) ----------------
+
+class RunTaskIn(BaseModel):
+    task_id: str = Field(max_length=64)
+    args: dict = Field(default_factory=dict)
+
+
+@router.get("/runner/tasks")
+async def runner_tasks(s: Settings = Depends(get_settings), ctx=_require):
+    return {"enabled": s.enable_task_execution, "tasks": runner_registry.task_summaries()}
+
+
+@router.post("/runner/run")
+async def runner_run(body: RunTaskIn, ctx=_require):
+    try:
+        result = runner_exec.run_task(body.task_id, body.args, ctx.label)
+    except runner_exec.RunnerDisabled as e:
+        raise HTTPException(403, str(e))
+    except runner_exec.Busy as e:
+        raise HTTPException(429, str(e))
+    except runner_registry.ValidationError as e:
+        raise HTTPException(400, str(e))
+    auth.audit("runner.run", f"{body.task_id} -> {result['status']}", ctx)
+    publish("scripts.changed", {"runner": body.task_id})
+    return result

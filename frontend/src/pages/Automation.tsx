@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Terminal, Wrench, HeartPulse, Plus, Download, Copy as CopyIcon, Trash2, Save } from "lucide-react";
+import { Terminal, Wrench, HeartPulse, Plus, Download, Copy as CopyIcon, Trash2, Save, Play, Lock } from "lucide-react";
 import { del, get, post, put } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
@@ -16,12 +16,14 @@ export function Automation() {
         <Tabs active={tab} onChange={setTab} tabs={[
           { id: "scripts", label: <span className="flex items-center gap-1.5"><Terminal className="h-3.5 w-3.5" />Scripts</span> },
           { id: "utils", label: <span className="flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />Utilities</span> },
+          { id: "runner", label: <span className="flex items-center gap-1.5"><Play className="h-3.5 w-3.5" />Runner</span> },
           { id: "health", label: <span className="flex items-center gap-1.5"><HeartPulse className="h-3.5 w-3.5" />Health</span> },
         ]} />
       </div>
       <PageBody className="p-0">
         {tab === "scripts" && <Scripts />}
         {tab === "utils" && <Utils />}
+        {tab === "runner" && <Runner />}
         {tab === "health" && <Health />}
       </PageBody>
     </>
@@ -141,6 +143,88 @@ function Utils() {
         </div>
       </Panel>
     </div>
+  );
+}
+
+function Runner() {
+  const toast = useToast();
+  const { data: status } = useQuery({ queryKey: ["exec-status"], queryFn: () => get("/automation/execution-status") });
+  const { data: tasks } = useQuery({ queryKey: ["runner-tasks"], queryFn: () => get("/automation/runner/tasks") });
+  const enabled = !!status?.task_execution_enabled;
+
+  return (
+    <div className="p-5 max-w-4xl space-y-4">
+      <div className={`well p-3 flex items-start gap-2.5 ${enabled ? "" : "border-warn/30"}`}>
+        <Lock className={`h-4 w-4 mt-0.5 shrink-0 ${enabled ? "text-ok" : "text-warn"}`} />
+        <div className="text-xs">
+          <div className="font-medium text-ink mb-0.5">
+            Local-utility runner is {enabled ? "ENABLED" : "DISABLED"}
+            {!status?.https && enabled && <span className="text-warn"> · running without HTTPS</span>}
+          </div>
+          <p className="text-ink-dim leading-relaxed">{status?.reason}</p>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {(tasks?.tasks || []).map((t: any) => <TaskCard key={t.id} task={t} enabled={enabled} onError={(m: string) => toast("error", m)} />)}
+      </div>
+    </div>
+  );
+}
+
+function TaskCard({ task, enabled, onError }: { task: any; enabled: boolean; onError: (m: string) => void }) {
+  const [args, setArgs] = useState<Record<string, any>>(() => {
+    const init: Record<string, any> = {};
+    task.params.forEach((p: any) => { init[p.name] = p.default ?? (p.type === "bool" ? false : ""); });
+    return init;
+  });
+  const [result, setResult] = useState<any>(null);
+  const run = useMutation({
+    mutationFn: () => post("/automation/runner/run", { task_id: task.id, args: cleanArgs(task, args) }),
+    onSuccess: (r) => setResult(r),
+    onError: (e: any) => { setResult(null); onError(e.message); },
+  });
+  function cleanArgs(t: any, a: Record<string, any>) {
+    const out: Record<string, any> = {};
+    t.params.forEach((p: any) => { if (a[p.name] !== "" && a[p.name] != null) out[p.name] = a[p.name]; });
+    return out;
+  }
+  let parsed: any = null;
+  try { parsed = result ? JSON.parse(result.stdout || "null") : null; } catch { parsed = null; }
+
+  return (
+    <Panel title={task.title}>
+      <div className="p-3 space-y-2">
+        <p className="text-2xs text-ink-faint">{task.description}</p>
+        {task.params.map((p: any) => (
+          <div key={p.name}>
+            <label className="label">{p.name}{p.required && <span className="text-bad"> *</span>}</label>
+            {p.type === "bool" ? (
+              <label className="flex items-center gap-2 text-sm h-8"><input type="checkbox" checked={!!args[p.name]} onChange={(e) => setArgs({ ...args, [p.name]: e.target.checked })} /> enable</label>
+            ) : p.type === "enum" ? (
+              <select className="input" value={args[p.name]} onChange={(e) => setArgs({ ...args, [p.name]: e.target.value })}>
+                {p.choices.map((c: string) => <option key={c}>{c}</option>)}
+              </select>
+            ) : p.max_len > 200 ? (
+              <textarea className="input h-20 py-1.5 mono resize-none" value={args[p.name]} onChange={(e) => setArgs({ ...args, [p.name]: e.target.value })} />
+            ) : (
+              <input className="input mono" value={args[p.name]} onChange={(e) => setArgs({ ...args, [p.name]: e.target.value })} />
+            )}
+          </div>
+        ))}
+        <button className="btn btn-primary w-full" disabled={!enabled || run.isPending} onClick={() => run.mutate()}>
+          {enabled ? <Play className="h-4 w-4" /> : <Lock className="h-4 w-4" />} {enabled ? "Run" : "Disabled"}
+        </button>
+        {result && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-2xs">
+              <Badge className={result.status === "done" ? "border-ok/30 text-ok bg-ok/10" : result.status === "timeout" ? "border-warn/40 text-warn bg-warn/10" : "border-bad/40 text-bad bg-bad/10"}>{result.status}</Badge>
+              <span className="text-ink-faint">{result.duration_ms} ms</span>
+            </div>
+            <CodeBlock code={parsed ? JSON.stringify(parsed, null, 2) : (result.stdout || result.stderr || "(no output)")} className="max-h-48" />
+          </div>
+        )}
+      </div>
+    </Panel>
   );
 }
 
