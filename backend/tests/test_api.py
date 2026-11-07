@@ -83,6 +83,26 @@ def test_flag_dedup(auth):
     assert r2.json()["duplicate"] is True
 
 
+def test_clear_soc_data(auth):
+    client, h = auth
+    events = [{"timestamp": "2026-11-07T10:00:00", "event_type": "http", "src_ip": "1.2.3.4",
+               "dest_ip": "10.0.0.1", "dest_port": 80, "proto": "TCP",
+               "http": {"url": "/x?id=1' OR '1'='1", "http_method": "GET", "status": 200},
+               "payload_printable": "id=1' OR '1'='1"}]
+    client.post("/api/soc/ingest", json={"events": events}, headers=h)
+    # also create a finding to prove it is NOT touched
+    client.post("/api/findings", json={"title": "keep me", "severity": "low"}, headers=h)
+    assert client.get("/api/soc/offenses").json()["total"] >= 1
+
+    r = client.post("/api/soc/clear", headers=h)
+    assert r.status_code == 200 and r.json()["cleared"] is True
+    assert client.get("/api/soc/offenses").json()["total"] == 0
+    assert client.get("/api/soc/events").json()["total"] == 0
+    assert client.get("/api/soc/dashboard").json()["empty"] is True
+    # findings survive
+    assert client.get("/api/findings").json()["total"] == 1
+
+
 def test_pcap_status_and_bad_magic(auth):
     client, h = auth
     st = client.get("/api/soc/ingest/pcap/status").json()

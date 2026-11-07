@@ -174,6 +174,28 @@ def _enforce_retention(s: Settings) -> None:
 
 # ---------------- Dashboard ----------------
 
+@router.post("/clear")
+async def clear_soc(ctx=_require):
+    """Clear captured SIEM telemetry (events + correlated offenses + offense notes).
+
+    Removes demo OR real events — it does NOT touch scripts, findings, services,
+    sensors, settings, or the account. Intended to reset the dashboard to its
+    empty state before a competition so anything that appears is genuinely real.
+    """
+    events = db.query_one("SELECT COUNT(*) c FROM events")["c"]
+    offenses = db.query_one("SELECT COUNT(*) c FROM offenses")["c"]
+    with db.transaction() as conn:
+        conn.execute("DELETE FROM offense_notes")
+        conn.execute("UPDATE events SET offense_id=NULL")
+        conn.execute("DELETE FROM offenses")
+        conn.execute("DELETE FROM events")
+    db.execute("DELETE FROM app_config WHERE key='soc_last_ingest'")
+    auth.audit("soc.clear", f"events={events} offenses={offenses}", ctx)
+    publish("soc.ingest", {"cleared": True})
+    publish("offenses.changed", {"cleared": True})
+    return {"cleared": True, "events_removed": events, "offenses_removed": offenses}
+
+
 @router.get("/dashboard")
 async def dashboard(ctx=_require):
     def one(sql, p=()):

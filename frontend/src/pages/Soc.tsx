@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  LayoutDashboard, ShieldAlert, ListFilter, RadioTower, BookOpen, Upload, Send,
+  LayoutDashboard, ShieldAlert, ListFilter, RadioTower, BookOpen, Upload, Send, Trash2,
 } from "lucide-react";
 import { get, post } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
-import { Drawer } from "../components/overlay";
+import { Drawer, Dialog } from "../components/overlay";
 import { OUTCOME_META, tech, timeAgo } from "../lib/format";
 import { GUIDES } from "../lib/setupGuides";
 
@@ -50,9 +50,15 @@ function Dashboard({ go }: { go: (t: string) => void }) {
   const toast = useToast();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["soc-dashboard"], queryFn: () => get("/soc/dashboard") });
+  const [confirmClear, setConfirmClear] = useState(false);
   const demoM = useMutation({
     mutationFn: () => post("/soc/ingest", demoPayload()),
     onSuccess: () => { qc.invalidateQueries(); toast("ok", "Sample traffic ingested (demo)"); },
+    onError: (e: any) => toast("error", e.message),
+  });
+  const clearM = useMutation({
+    mutationFn: () => post("/soc/clear"),
+    onSuccess: (r: any) => { qc.invalidateQueries(); setConfirmClear(false); toast("ok", `Cleared ${r.events_removed} events, ${r.offenses_removed} offenses`); },
     onError: (e: any) => toast("error", e.message),
   });
 
@@ -60,6 +66,16 @@ function Dashboard({ go }: { go: (t: string) => void }) {
   const d = data || {};
   return (
     <div className="space-y-4 max-w-6xl">
+      {!d.empty && (
+        <div className="flex items-center justify-between well px-3 py-2">
+          <span className="text-2xs text-ink-faint">
+            Showing {d.events_total} event(s). If this is sample/demo traffic, clear it so the dashboard reflects real monitoring only.
+          </span>
+          <button className="btn btn-sm btn-danger" onClick={() => setConfirmClear(true)}>
+            <Trash2 className="h-3.5 w-3.5" /> Clear demo data
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Tile label="Confirmed" value={d.confirmed ?? 0} cls="text-crit" />
         <Tile label="Possible" value={d.possible ?? 0} cls="text-warn" />
@@ -105,6 +121,19 @@ function Dashboard({ go }: { go: (t: string) => void }) {
           </Panel>
         </div>
       )}
+
+      <Dialog open={confirmClear} onClose={() => setConfirmClear(false)} title="Clear demo data"
+        footer={<><button className="btn" onClick={() => setConfirmClear(false)}>Cancel</button>
+          <button className="btn btn-danger" onClick={() => clearM.mutate()} disabled={clearM.isPending}>Clear events & offenses</button></>}>
+        <p className="text-sm text-ink-dim">
+          This permanently removes all captured <strong>events and correlated offenses</strong> from the SIEM
+          (demo or real), resetting the dashboard to its empty state.
+        </p>
+        <p className="text-xs text-ink-faint mt-2">
+          Scripts, findings, services, sensors, settings, and your account are <strong>not</strong> affected.
+          Live sensors will repopulate the dashboard as new traffic arrives.
+        </p>
+      </Dialog>
     </div>
   );
 }
