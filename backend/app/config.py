@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     # --- Feature gates (require explicit operator opt-in) ---
     enable_exploit_runner: bool = False
     enable_task_execution: bool = False
+    enable_pwn_exec: bool = False      # run uploaded binaries/exploits (needs sandbox worker)
     enable_scheduled_jobs: bool = False
     enable_demo_data: bool = False
 

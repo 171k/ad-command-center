@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Crosshair, Shield, Terminal, Radar, FileSearch, Settings as Cog,
-  LogOut, CircleDot, Package,
+  LogOut, CircleDot, Package, Binary,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useLiveSync } from "../lib/sse";
@@ -14,6 +14,7 @@ const SECTIONS = [
   { to: "/defense", label: "Defense", icon: Shield, desc: "Code analysis · Patches" },
   { to: "/automation", label: "Automation", icon: Terminal, desc: "Scripts · Utilities · Health" },
   { to: "/soc", label: "Network / SOC", icon: Radar, desc: "Offenses · Traffic · Evidence" },
+  { to: "/pwn", label: "Pwn Solver", icon: Binary, desc: "ELF · checksec · ROP · exploits" },
 ];
 const SECONDARY = [
   { to: "/findings", label: "Findings", icon: FileSearch },
