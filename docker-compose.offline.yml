@@ -1,0 +1,60 @@
+# Fully-offline A&D Command Center (laptop / air-gapped / competition LAN).
+# No GitHub, no Azure, no external API, no Tailscale, no domain — plain HTTP on
+# http://localhost:8080. Everything runs from local images + a local volume.
+#
+#   docker compose -f docker-compose.offline.yml up -d --build
+#   docker compose -f docker-compose.offline.yml exec backend python -m app.admin seed-users --default "<pw>"
+#
+# Data persists in the `adcc-offline-data` volume. See docs/OFFLINE.md.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_TSHARK: "true"
+    restart: unless-stopped
+    environment:
+      ADCC_ENVIRONMENT: production
+      # CHANGE THIS before real use (openssl rand -base64 48). Kept with a default
+      # so the stack starts turnkey offline; it only signs local session/CSRF tokens.
+      ADCC_SECRET_KEY: ${ADCC_SECRET_KEY:-offline-local-change-me-0000000000000000000000}
+      ADCC_COOKIE_SECURE: "false"        # plain HTTP on localhost
+      ADCC_ALLOWED_HOSTS: "*"            # localhost only; not internet-exposed
+    volumes:
+      - adcc-offline-data:/data
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      DOMAIN: ":80"                     # plain HTTP, no TLS, no ACME
+    ports:
+      - "${OFFLINE_PORT:-8080}:80"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+volumes:
+  adcc-offline-data:
