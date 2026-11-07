@@ -186,12 +186,11 @@ def _run_semgrep(code: str, language: str) -> tuple[list[dict], str]:
         with tempfile.TemporaryDirectory() as td:
             src = Path(td) / f"snippet{ext}"
             src.write_text(code, encoding="utf-8")
-            cmd = ["semgrep", "--json", "--quiet", "--timeout", "15", "--metrics=off"]
-            if rules_dir.exists():
-                cmd += ["--config", str(rules_dir)]
-            else:
-                cmd += ["--config", "auto"]
-            cmd.append(str(src))
+            if not rules_dir.exists():
+                # Never use --config auto (it fetches from the registry). Offline-only.
+                return [], "Semgrep installed but no local ruleset bundled; used built-in rules."
+            cmd = ["semgrep", "--json", "--quiet", "--timeout", "15",
+                   "--metrics=off", "--config", str(rules_dir), str(src)]
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if proc.returncode not in (0, 1):
                 return [], f"Semgrep exited {proc.returncode}: {proc.stderr[:200]}"
