@@ -14,7 +14,6 @@ Nothing here executes payloads; payload bytes are stored as escaped text only.
 """
 from __future__ import annotations
 
-import base64
 import re
 from datetime import datetime, timezone
 from urllib.parse import unquote_plus

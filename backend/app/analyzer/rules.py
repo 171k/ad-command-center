@@ -149,7 +149,7 @@ RULES: list[Rule] = [
         name="subprocess with shell=True",
         cwe="CWE-78",
         languages=["python"],
-        sink=r"(subprocess\.(run|call|Popen|check_output)|os\.popen)\s*\([^)]*shell\s*=\s*True",
+        sink=r"subprocess\.(run|call|Popen|check_output)[^\n]*?shell\s*=\s*True",
         description="An OS command is executed through the shell (shell=True), so shell metacharacters are interpreted.",
         why="If any part of the command string is user input, characters like ; | $() `` let the attacker run arbitrary commands.",
         preconditions="The command string includes attacker-influenced input.",

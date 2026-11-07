@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import json
-import re as _re
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field

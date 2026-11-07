@@ -10,7 +10,6 @@ Safety model:
 from __future__ import annotations
 
 import socket
-import ssl
 import time
 
 import httpx

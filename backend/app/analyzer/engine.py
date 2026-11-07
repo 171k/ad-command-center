@@ -20,7 +20,6 @@ import re
 import shutil
 import subprocess
 import tempfile
-from dataclasses import asdict
 from pathlib import Path
 
 from .rules import LANG_ALIASES, TAINT_SOURCES, Rule, rules_for_language
