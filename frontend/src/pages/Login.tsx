@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { CircleDot } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { ApiError } from "../lib/api";
 import { Field } from "../components/ui";
 
-const LABELS = ["itik", "mejik", "gha", "namia"];
-
 export function Login() {
   const { status, login, setup } = useAuth();
-  const isSetup = status?.account_setup === false;
+  const isSetup = status?.configured === false;
+  const users = status?.users ?? ["itik", "mejik", "gha", "namia"];
+  const [username, setUsername] = useState(localStorage.getItem("adcc_user") || users[0]);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [label, setLabel] = useState(localStorage.getItem("adcc_label") || "itik");
   const [totp, setTotp] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,9 +23,9 @@ export function Login() {
         if (password.length < 10) throw new Error("Password must be at least 10 characters.");
         if (password !== confirm) throw new Error("Passwords do not match.");
         await setup(password);
-        await login(password, label);
+        await login(username, password);
       } else {
-        await login(password, label, totp || undefined);
+        await login(username, password, totp || undefined);
       }
     } catch (e: any) {
       setErr(e instanceof ApiError ? e.message : e.message || "Login failed");
@@ -40,8 +38,8 @@ export function Login() {
     <div className="h-full grid place-items-center p-4 bg-[radial-gradient(ellipse_at_top,#111722,#0b0e14)]">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2.5 mb-6 justify-center">
-          <div className="h-9 w-9 rounded-lg bg-accent/15 border border-accent/30 grid place-items-center">
-            <CircleDot className="h-5 w-5 text-accent" />
+          <div className="h-9 w-9 rounded-lg bg-accent/15 border border-accent/30 grid place-items-center overflow-hidden">
+            <img src="/favicon-64.png" alt="" className="h-9 w-9 object-cover" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
           </div>
           <div>
             <div className="text-base font-semibold">A&amp;D Command Center</div>
@@ -54,29 +52,28 @@ export function Login() {
             <h1 className="text-sm font-semibold">{isSetup ? "Create team password" : "Sign in"}</h1>
             <p className="text-2xs text-ink-faint mt-0.5">
               {isSetup
-                ? "One-time setup. All four teammates share this single account."
-                : "Shared team account. Pick a session label to attribute your activity."}
+                ? "One-time setup. Sets an initial password for all four accounts; each person can change their own afterward."
+                : "Pick your account and sign in. Everyone shares the same findings, offenses and SIEM data."}
             </p>
           </div>
 
-          {!isSetup && (
-            <Field label="Session label">
-              <div className="grid grid-cols-4 gap-1.5">
-                {LABELS.map((l) => (
-                  <button
-                    type="button"
-                    key={l}
-                    onClick={() => setLabel(l)}
-                    className={`btn btn-sm ${label === l ? "btn-primary" : ""}`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          )}
+          <Field label={isSetup ? "Accounts" : "Account"}>
+            <div className="grid grid-cols-4 gap-1.5">
+              {users.map((u) => (
+                <button
+                  type="button"
+                  key={u}
+                  onClick={() => setUsername(u)}
+                  disabled={isSetup}
+                  className={`btn btn-sm ${username === u && !isSetup ? "btn-primary" : ""} ${isSetup ? "opacity-70" : ""}`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </Field>
 
-          <Field label={isSetup ? "New password" : "Password"}>
+          <Field label={isSetup ? "Initial password" : "Password"}>
             <input className="input" type="password" value={password} autoFocus
               onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••" />
           </Field>
@@ -98,11 +95,11 @@ export function Login() {
           {err && <div className="text-xs text-bad bg-bad/10 border border-bad/30 rounded px-2.5 py-2">{err}</div>}
 
           <button className="btn btn-primary w-full h-9" disabled={busy}>
-            {busy ? "…" : isSetup ? "Create & sign in" : "Sign in"}
+            {busy ? "…" : isSetup ? "Create & sign in" : `Sign in as ${username}`}
           </button>
         </form>
         <p className="text-2xs text-ink-faint text-center mt-3">
-          Self-hosted · No runtime AI · Session labels are attribution hints, not identity.
+          Self-hosted · No runtime AI · Individual accounts, shared operational data.
         </p>
       </div>
     </div>

@@ -2,18 +2,20 @@ import { createContext, ReactNode, useContext, useEffect, useState } from "react
 import { get, post } from "./api";
 
 type Status = {
-  account_setup: boolean;
+  configured: boolean;
   authenticated: boolean;
+  username: string | null;
   totp_enabled: boolean;
+  users: string[];
   app_name: string;
 };
 
 type AuthCtx = {
   status: Status | null;
   loading: boolean;
-  label: string | null;
+  username: string | null;
   refresh: () => Promise<void>;
-  login: (password: string, label?: string, totp?: string) => Promise<void>;
+  login: (username: string, password: string, totp?: string) => Promise<void>;
   setup: (password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -24,11 +26,13 @@ export const useAuth = () => useContext(Ctx);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
-  const [label, setLabel] = useState<string | null>(localStorage.getItem("adcc_label"));
+  const [username, setUsername] = useState<string | null>(null);
 
   const refresh = async () => {
     try {
-      setStatus(await get<Status>("/auth/status"));
+      const st = await get<Status>("/auth/status");
+      setStatus(st);
+      setUsername(st.username);
     } finally {
       setLoading(false);
     }
@@ -37,11 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, []);
 
-  const login = async (password: string, lbl?: string, totp?: string) => {
-    const r = await post<{ label?: string }>("/auth/login", { password, label: lbl, totp });
-    if (r.label) {
-      setLabel(r.label);
-      localStorage.setItem("adcc_label", r.label);
+  const login = async (user: string, password: string, totp?: string) => {
+    const r = await post<{ username?: string }>("/auth/login", { username: user, password, totp });
+    if (r.username) {
+      setUsername(r.username);
+      localStorage.setItem("adcc_user", r.username);
     }
     await refresh();
   };
@@ -51,11 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   const logout = async () => {
     await post("/auth/logout");
+    setUsername(null);
     await refresh();
   };
 
   return (
-    <Ctx.Provider value={{ status, loading, label, refresh, login, setup, logout }}>
+    <Ctx.Provider value={{ status, loading, username, refresh, login, setup, logout }}>
       {children}
     </Ctx.Provider>
   );

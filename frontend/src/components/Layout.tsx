@@ -22,7 +22,7 @@ const SECONDARY = [
 
 export function Layout({ children }: { children: ReactNode }) {
   useLiveSync();
-  const { label, logout } = useAuth();
+  const { username, logout } = useAuth();
   const nav = useNavigate();
   const { data: stats } = useQuery({ queryKey: ["stats"], queryFn: () => get("/system/stats") });
 
@@ -93,11 +93,11 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="border-t border-line p-2">
           <div className="flex items-center gap-2 px-1 lg:px-2 py-1.5 text-sm">
             <div className="h-6 w-6 shrink-0 rounded-full bg-accent/15 border border-accent/30 grid place-items-center text-2xs font-semibold text-accent">
-              {(label ?? "T").slice(0, 2).toUpperCase()}
+              {(username ?? "T").slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1 hidden lg:block">
-              <div className="text-xs font-medium truncate">{label ?? "Team"}</div>
-              <div className="text-2xs text-ink-faint">shared account</div>
+              <div className="text-xs font-medium truncate">{username ?? "Team"}</div>
+              <div className="text-2xs text-ink-faint">signed in · shared data</div>
             </div>
             <button className="btn btn-ghost btn-sm" title="Log out" onClick={() => logout().then(() => nav("/"))}>
               <LogOut className="h-4 w-4" />

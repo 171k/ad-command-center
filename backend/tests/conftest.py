@@ -29,7 +29,7 @@ _TABLES = [
     "offense_notes", "offenses", "events", "sensors", "executions", "jobs",
     "script_revisions", "scripts", "analyses", "finding_notes", "findings",
     "service_health", "services", "flags", "login_attempts", "audit_log",
-    "app_config", "sessions",
+    "app_config", "sessions", "users",
 ]
 
 
@@ -51,8 +51,8 @@ def client(_client):
 
 @pytest.fixture
 def auth(client):
-    """Returns (client, headers) with the account set up and logged in."""
+    """Returns (client, headers) with the team users seeded and 'itik' logged in."""
     client.post("/api/auth/setup", json={"password": PASSWORD})
-    r = client.post("/api/auth/login", json={"password": PASSWORD, "label": "Player 1"})
+    r = client.post("/api/auth/login", json={"username": "itik", "password": PASSWORD})
     csrf = r.json()["csrf_token"]
     return client, {"X-CSRF-Token": csrf}

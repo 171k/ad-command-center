@@ -25,24 +25,39 @@ def _init():
 
 def cmd_status(_):
     _init()
-    print("Account configured:", auth.account_is_setup())
+    users = db.query("SELECT username, (password_hash IS NOT NULL) has_pw, totp_enabled FROM users ORDER BY id")
+    print("Users:")
+    for u in users:
+        print(f"  {u['username']}: password={'set' if u['has_pw'] else 'UNSET'} totp={'on' if u['totp_enabled'] else 'off'}")
     for t in ("services", "findings", "scripts", "events", "offenses", "sensors"):
         print(f"  {t}: {db.query_one(f'SELECT COUNT(*) c FROM {t}')['c']}")
 
 
-def cmd_set_password(args):
+def cmd_seed_users(args):
+    """Ensure the four team users exist. itik keeps any migrated password; the
+    others get the provided default password (never stored in git)."""
     _init()
-    pw = args.password or getpass.getpass("New shared password (min 10 chars): ")
-    if not args.password:
-        if pw != getpass.getpass("Confirm: "):
-            print("Passwords do not match.", file=sys.stderr)
-            sys.exit(1)
+    default = args.default or getpass.getpass("Default password for new users (min 10): ")
+    for name in auth.TEAM_USERS:
+        u = auth.get_user(name)
+        if u and u["password_hash"]:
+            print(f"exists (kept): {name}")
+        elif u:
+            auth.set_user_password(name, default); print(f"password set: {name}")
+        else:
+            auth.create_user(name, default); print(f"created: {name}")
+
+
+def cmd_set_user_password(args):
+    _init()
+    if not auth.get_user(args.username):
+        auth.create_user(args.username)
+    pw = args.password or getpass.getpass(f"New password for {args.username} (min 10): ")
     try:
-        auth.set_password(pw)
+        auth.set_user_password(args.username, pw)
     except ValueError as e:
-        print(e, file=sys.stderr)
-        sys.exit(1)
-    print("Password set.")
+        print(e, file=sys.stderr); sys.exit(1)
+    print(f"Password set for {args.username}.")
 
 
 def cmd_seed_library(_):
@@ -78,7 +93,8 @@ def main(argv=None):
     p = argparse.ArgumentParser(prog="app.admin")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status").set_defaults(fn=cmd_status)
-    sp = sub.add_parser("set-password"); sp.add_argument("--password"); sp.set_defaults(fn=cmd_set_password)
+    su = sub.add_parser("seed-users"); su.add_argument("--default"); su.set_defaults(fn=cmd_seed_users)
+    up = sub.add_parser("set-user-password"); up.add_argument("username"); up.add_argument("--password"); up.set_defaults(fn=cmd_set_user_password)
     sub.add_parser("seed-library").set_defaults(fn=cmd_seed_library)
     cs = sub.add_parser("create-sensor"); cs.add_argument("name"); cs.set_defaults(fn=cmd_create_sensor)
     sub.add_parser("demo-data").set_defaults(fn=cmd_demo_data)

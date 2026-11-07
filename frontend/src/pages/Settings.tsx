@@ -25,15 +25,15 @@ export function Settings() {
     <>
       <PageHeader title="Settings" subtitle="Sessions · security · audit" />
       <PageBody className="max-w-4xl space-y-4">
-        <Panel title="Active sessions" actions={<button className="btn btn-sm btn-danger" onClick={() => revokeAll.mutate()}>Revoke all others</button>}>
+        <Panel title="Active sessions" actions={<button className="btn btn-sm btn-danger" onClick={() => revokeAll.mutate()}>Revoke my other sessions</button>}>
           <table className="w-full row-hover">
-            <thead><tr><th className="th">Label</th><th className="th">Fingerprint</th><th className="th">IP</th><th className="th">Last seen</th></tr></thead>
+            <thead><tr><th className="th">User</th><th className="th">Fingerprint</th><th className="th">IP</th><th className="th">Last seen</th></tr></thead>
             <tbody>{(sessions?.sessions || []).map((s: any) => (
               <tr key={s.fingerprint}><td className="td">{s.label ?? "—"} {s.fingerprint === sessions.current && <Badge className="border-accent/40 text-accent bg-accent/10">this</Badge>}</td>
                 <td className="td mono text-xs">{s.fingerprint}</td><td className="td mono text-xs">{s.ip ?? "—"}</td><td className="td text-ink-faint">{timeAgo(s.last_seen_at)}</td></tr>
             ))}</tbody>
           </table>
-          <p className="text-2xs text-ink-faint p-3">Session labels are attribution hints only — all sessions share one credential, so individual identity is not guaranteed.</p>
+          <p className="text-2xs text-ink-faint p-3">Each teammate has their own account; findings, offenses and SIEM data are shared. "Revoke my other sessions" and password changes apply only to your own account.</p>
         </Panel>
 
         <Panel title="Change password">
