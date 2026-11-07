@@ -4,14 +4,14 @@ import { useAuth } from "../lib/auth";
 import { ApiError } from "../lib/api";
 import { Field } from "../components/ui";
 
-const LABELS = ["Player 1", "Player 2", "Player 3", "Substitute"];
+const LABELS = ["itik", "mejik", "gha", "namia"];
 
 export function Login() {
   const { status, login, setup } = useAuth();
   const isSetup = status?.account_setup === false;
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [label, setLabel] = useState(localStorage.getItem("adcc_label") || "Player 1");
+  const [label, setLabel] = useState(localStorage.getItem("adcc_label") || "itik");
   const [totp, setTotp] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -69,7 +69,7 @@ export function Login() {
                     onClick={() => setLabel(l)}
                     className={`btn btn-sm ${label === l ? "btn-primary" : ""}`}
                   >
-                    {l.replace("Player ", "P").replace("Substitute", "Sub")}
+                    {l}
                   </button>
                 ))}
               </div>
