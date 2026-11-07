@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import StreamingResponse
 
 from . import db, events_bus
@@ -32,6 +33,12 @@ app = FastAPI(
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
 )
+
+# Host allowlist (defense in depth; Caddy already restricts which hosts reach us).
+# "*" disables it (default, e.g. tests/dev). In production set ADCC_ALLOWED_HOSTS.
+if settings.allowed_hosts.strip() != "*":
+    _hosts = [h.strip() for h in settings.allowed_hosts.split(",") if h.strip()]
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_hosts)
 
 # In dev the Vite frontend runs on a separate origin and needs credentialed CORS.
 if not settings.is_production:

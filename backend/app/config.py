@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     csrf_cookie_name: str = "adcc_csrf"
     cookie_secure: bool = False  # True behind HTTPS (production)
     cookie_samesite: str = "lax"
+    # Comma-separated Host allowlist (TrustedHostMiddleware). "*" disables the check.
+    allowed_hosts: str = "*"
     login_max_attempts: int = 8
     login_window_seconds: int = 300
 

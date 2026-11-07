@@ -1,15 +1,19 @@
-# Caddy serves the SPA and reverse-proxies the API to the backend container.
-# Set DOMAIN in the environment for automatic HTTPS; defaults to :80 for local.
+# Caddy reverse proxy with automatic, publicly-trusted TLS (Let's Encrypt).
+# Certificates are obtained and renewed automatically and stored in the
+# persistent `caddy-data` volume, so they survive deploys and restarts.
+# DOMAIN is provided by the environment (e.g. itikad.site).
 {
-	# Opt out of admin API exposure; keep logs lean.
 	admin off
 }
 
-{$DOMAIN::80} {
+# ---- Canonical HTTPS site ----
+# Caddy auto-obtains/renews the cert for this host and auto-redirects its own
+# HTTP (port 80) traffic to HTTPS.
+{$DOMAIN} {
 	encode zstd gzip
 
-	# Security headers (CSP allows the SPA's own assets + API calls; fonts optional).
 	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
@@ -17,7 +21,7 @@
 		-Server
 	}
 
-	# API + SSE -> backend. SSE needs buffering disabled and long timeouts.
+	# API + SSE -> backend (Host header preserved; streaming kept alive).
 	@api path /api/*
 	handle @api {
 		reverse_proxy backend:8000 {
@@ -28,10 +32,33 @@
 		}
 	}
 
-	# SPA static assets with history-API fallback.
+	# SPA with history-API fallback.
 	handle {
 		root * /srv
 		try_files {path} /index.html
 		file_server
+	}
+}
+
+# ---- www -> apex (canonical) ----
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+# ---- Everything else over plain HTTP (e.g. the raw public IP, unknown Host) ----
+# The backend is NEVER served here, so HTTP/IP cannot bypass TLS. Localhost keeps
+# /api/health for the deploy health-gate; all else is redirected to canonical HTTPS.
+:80 {
+	@health {
+		path /api/health
+		host 127.0.0.1 localhost
+	}
+	handle @health {
+		reverse_proxy backend:8000 {
+			flush_interval -1
+		}
+	}
+	handle {
+		redir https://{$DOMAIN}{uri} permanent
 	}
 }
