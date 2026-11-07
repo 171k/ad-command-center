@@ -135,14 +135,24 @@ def ingest_one(ev: dict, rec: dict | None, conn) -> dict:
 
 
 def _offense_evidence(conn, offense_id: int, outcome: str) -> str:
-    """Summarize offense evidence: counts + strongest event's classification."""
+    """Summarize offense evidence: the strongest event's classification, computed
+    against its ORIGINAL record (parsed from the stored raw) so proof signals
+    (response bodies, app_proof) are preserved — not lost to re-classification."""
     top = conn.execute(
         "SELECT * FROM events WHERE offense_id=? "
         "ORDER BY CASE outcome WHEN 'confirmed' THEN 3 WHEN 'possible' THEN 2 "
         "WHEN 'blocked' THEN 1 ELSE 0 END DESC, severity ASC, id DESC LIMIT 1",
         (offense_id,),
     ).fetchone()
-    ev_list = classify(dict(top), None)[1] if top else []
+    if not top:
+        return json.dumps({"outcome": outcome, "signals": []})
+    rec = {}
+    if top["raw"]:
+        try:
+            rec = json.loads(top["raw"])
+        except Exception:
+            rec = {}
+    ev_list = classify(dict(top), rec)[1]
     return json.dumps({"outcome": outcome, "signals": ev_list})
 
 
