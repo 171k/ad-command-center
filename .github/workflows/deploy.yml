@@ -3,8 +3,8 @@ name: Deploy
 # Secure deploy: a GitHub-hosted runner joins your private Tailscale tailnet as
 # an EPHEMERAL, tagged node (tag:ci), reaches ONLY the VM's SSH port (enforced by
 # your tailnet ACL), and deploys over that private link. No public SSH rule, no
-# permanent self-hosted runner. Runs only after CI passes on main, gated by the
-# DEPLOY_ENABLED variable, in the protected `production` environment.
+# permanent self-hosted runner. Runs only after CI passes on `main`, gated by the
+# vars.DEPLOY_ENABLED flag, in the protected `production` environment.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write   # for the Tailscale OAuth exchange
+  id-token: write   # Tailscale OAuth token exchange
 
 concurrency:
   group: production-deploy
@@ -21,12 +21,13 @@ concurrency:
 
 jobs:
   deploy:
+    # Only approved changes on main (CI passed) + explicit opt-in.
     if: ${{ github.event.workflow_run.conclusion == 'success' && vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Connect to tailnet (ephemeral, tag:ci)
-        uses: tailscale/github-action@v3
+        uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
@@ -36,9 +37,11 @@ jobs:
       - name: Deploy over the tailnet (pull + build + health-gate + rollback)
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.DEPLOY_HOST }}        # the VM's tailnet IP (100.x) or MagicDNS name
+          host: ${{ vars.DEPLOY_HOST }}              # VM tailnet IP (vars, not a secret)
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Pin the server's host key — verification is enforced, not skipped.
+          fingerprint: ${{ vars.DEPLOY_SSH_FINGERPRINT }}
           script: |
             set -euo pipefail
             cd ~/adcc-command-center
