@@ -8,6 +8,7 @@ import { Defense } from "./pages/Defense";
 import { Automation } from "./pages/Automation";
 import { Soc } from "./pages/Soc";
 import { Findings } from "./pages/Findings";
+import { Tools } from "./pages/Tools";
 import { Settings } from "./pages/Settings";
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/automation" element={<Automation />} />
         <Route path="/soc/*" element={<Soc />} />
         <Route path="/findings" element={<Findings />} />
+        <Route path="/tools" element={<Tools />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/soc" replace />} />
       </Routes>

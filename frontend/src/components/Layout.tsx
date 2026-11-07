@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Crosshair, Shield, Terminal, Radar, FileSearch, Settings as Cog,
-  LogOut, CircleDot,
+  LogOut, CircleDot, Package,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useLiveSync } from "../lib/sse";
@@ -17,6 +17,7 @@ const SECTIONS = [
 ];
 const SECONDARY = [
   { to: "/findings", label: "Findings", icon: FileSearch },
+  { to: "/tools", label: "Tool Repository", icon: Package },
   { to: "/settings", label: "Settings", icon: Cog },
 ];
 
