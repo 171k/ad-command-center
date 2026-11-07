@@ -18,8 +18,10 @@ concurrency:
 
 jobs:
   deploy:
-    # Only deploy if CI succeeded.
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Deploy only when CI succeeded AND the operator has opted in by setting the
+    # repository variable DEPLOY_ENABLED=true (after configuring the VPS + secrets).
+    # This keeps the workflow dormant — not failing — until infrastructure exists.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     environment: production   # holds DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY secrets
     steps:

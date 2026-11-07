@@ -60,6 +60,11 @@ Set under **Settings → Environments → production**:
 | `DEPLOY_USER` | SSH user (member of `docker` group) |
 | `DEPLOY_SSH_KEY` | Private key for that user (deploy-only, least privilege) |
 
+Then enable deployment by adding a repository **variable** (not secret)
+`DEPLOY_ENABLED=true` (**Settings → Secrets and variables → Actions → Variables**).
+Until that variable is set, the Deploy workflow stays dormant (it does not run or
+fail) — so CI alone is green on a fresh clone with no VPS yet.
+
 On the VPS: clone to `/opt/adcc-command-center`, create `.env`, and ensure the
 deploy user can run `docker compose`. Application secrets (`ADCC_SECRET_KEY`, the
 shared password) live in the server's `.env` / admin CLI — **not** in GitHub.
