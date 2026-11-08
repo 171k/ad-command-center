@@ -194,8 +194,8 @@ function Finding({ f }: { f: any }) {
           {f.test_procedure && <Info label="Safe test (authorized only)" text={f.test_procedure} />}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {f.exploit_template && <Labeled label="Example payload"><CodeBlock code={f.exploit_template} className="max-h-40" /></Labeled>}
-            {f.remediation && <Labeled label="How to patch"><CodeBlock code={f.remediation} className="max-h-40" /></Labeled>}
+            {f.exploit_template && <Labeled label="Example payload"><SmartBlock text={f.exploit_template} /></Labeled>}
+            {f.remediation && <Labeled label="How to patch"><SmartBlock text={f.remediation} /></Labeled>}
           </div>
           {f.why_patch_works && <Info label="Why the patch works" text={f.why_patch_works} />}
           {f.regression_test && <Labeled label="Regression test"><CodeBlock code={f.regression_test} className="max-h-40" /></Labeled>}
@@ -210,6 +210,24 @@ function Finding({ f }: { f: any }) {
         </div>
       )}
     </Panel>
+  );
+}
+
+// Payload/patch can be code (curated rules) or a prose sentence (CWE enrichment).
+// Render code monospace, prose as wrapped text; never a horizontal-scrolling line.
+function isCodeLike(s: string): boolean {
+  if (s.includes("\n")) return true;
+  return /[;{}]|=>|->|::|\w\(["'[]/.test(s);
+}
+
+function SmartBlock({ text }: { text: string }) {
+  if (isCodeLike(text)) {
+    return <CodeBlock code={text} className="max-h-48" wrap noGutter={!text.includes("\n")} />;
+  }
+  return (
+    <p className="text-sm text-ink-dim leading-relaxed well rounded-md px-3 py-2 whitespace-pre-wrap break-words">
+      {text}
+    </p>
   );
 }
 
