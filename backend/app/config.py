@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     db_path: Path = REPO_DIR / "data" / "adcc.db"
     upload_dir: Path = REPO_DIR / "data" / "uploads"
     pcap_dir: Path = REPO_DIR / "data" / "pcaps"
+    tools_dir: Path = REPO_DIR / "data" / "tools"       # hosted tool artifacts
+    pwn_dir: Path = REPO_DIR / "data" / "pwn"           # uploaded challenge binaries
+    max_tool_artifact_bytes: int = 500 * 1024 * 1024   # 500MB per artifact
+    max_pwn_binary_bytes: int = 64 * 1024 * 1024        # 64MB per binary
 
     # --- Auth / sessions ---
     session_ttl_seconds: int = 60 * 60 * 12  # 12h sliding
@@ -64,6 +68,7 @@ class Settings(BaseSettings):
     # --- Feature gates (require explicit operator opt-in) ---
     enable_exploit_runner: bool = False
     enable_task_execution: bool = False
+    enable_pwn_exec: bool = False      # run uploaded binaries/exploits (needs sandbox worker)
     enable_scheduled_jobs: bool = False
     enable_demo_data: bool = False
 
@@ -80,7 +85,6 @@ def get_settings() -> Settings:
 
 def get_settings_uncached() -> Settings:
     s = Settings()
-    s.data_dir.mkdir(parents=True, exist_ok=True)
-    s.upload_dir.mkdir(parents=True, exist_ok=True)
-    s.pcap_dir.mkdir(parents=True, exist_ok=True)
+    for d in (s.data_dir, s.upload_dir, s.pcap_dir, s.tools_dir, s.pwn_dir):
+        d.mkdir(parents=True, exist_ok=True)
     return s

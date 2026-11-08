@@ -14,6 +14,8 @@ os.environ["ADCC_DATA_DIR"] = str(_TMP)
 os.environ["ADCC_DB_PATH"] = str(_TMP / "test.db")
 os.environ["ADCC_UPLOAD_DIR"] = str(_TMP / "uploads")
 os.environ["ADCC_PCAP_DIR"] = str(_TMP / "pcaps")
+os.environ["ADCC_TOOLS_DIR"] = str(_TMP / "tools")
+os.environ["ADCC_PWN_DIR"] = str(_TMP / "pwn")
 os.environ["ADCC_SECRET_KEY"] = "test-secret-key"
 os.environ["ADCC_LOGIN_MAX_ATTEMPTS"] = "5"
 
@@ -29,6 +31,7 @@ _TABLES = [
     "offense_notes", "offenses", "events", "sensors", "executions", "jobs",
     "script_revisions", "scripts", "analyses", "finding_notes", "findings",
     "service_health", "services", "flags", "login_attempts", "audit_log",
+    "tool_artifacts", "tools", "pwn_scripts", "pwn_cases",
     "app_config", "sessions", "users",
 ]
 

@@ -13,8 +13,9 @@ from . import db, events_bus
 from .auth import SessionCtx, require_session
 from .config import get_settings
 from .routers import (
-    attack, automation, auth_router, defense, findings, services, soc, system,
+    attack, automation, auth_router, defense, findings, pwn, services, soc, system, tools,
 )
+from .tools import catalog_seed
 
 settings = get_settings()
 
@@ -23,6 +24,10 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     applied = db.run_migrations()
     app.state.migrations_applied = applied
+    try:
+        catalog_seed.seed_catalog()  # populate tool catalog metadata if empty
+    except Exception:
+        pass
     yield
 
 
@@ -77,6 +82,8 @@ app.include_router(attack.router, prefix="/api/attack", tags=["attack"])
 app.include_router(defense.router, prefix="/api/defense", tags=["defense"])
 app.include_router(automation.router, prefix="/api/automation", tags=["automation"])
 app.include_router(soc.router, prefix="/api/soc", tags=["soc"])
+app.include_router(tools.router, prefix="/api/tools", tags=["tools"])
+app.include_router(pwn.router, prefix="/api/pwn", tags=["pwn"])
 
 
 @app.get("/api/health")
