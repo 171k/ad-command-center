@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload, FolderArchive, Trash2 } from "lucide-react";
+import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload, FolderArchive, Trash2, GitCompare } from "lucide-react";
 import { get, post, upload, del } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { HowToUse } from "../components/HowToUse";
 import { GuideBrowser } from "../components/Guide";
+import { Patches } from "../components/Patches";
 import { CodeEditor } from "../components/CodeEditor";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { CONFIDENCE_META } from "../lib/format";
@@ -33,6 +34,7 @@ export function Defense() {
             { id: "analyze", label: <span className="flex items-center gap-1.5"><Play className="h-3.5 w-3.5" />Analyze</span> },
             { id: "project", label: <span className="flex items-center gap-1.5"><FolderArchive className="h-3.5 w-3.5" />Project (zip)</span> },
             { id: "rules", label: <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" />Rule library</span> },
+            { id: "patches", label: <span className="flex items-center gap-1.5"><GitCompare className="h-3.5 w-3.5" />Patches</span> },
             { id: "saved", label: <span className="flex items-center gap-1.5"><FileCode2 className="h-3.5 w-3.5" />Saved</span> },
             { id: "playbooks", label: <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" />Playbooks</span> },
           ]}
@@ -42,6 +44,7 @@ export function Defense() {
       <PageBody className="p-0">
         {tab === "analyze" && <Analyze onUseProject={() => setTab("project")} />}
         {tab === "project" && <ProjectScan />}
+        {tab === "patches" && <Patches />}
         {tab === "rules" && <RuleLibrary />}
         {tab === "saved" && <Saved />}
         {tab === "playbooks" && <div className="p-5 max-w-4xl"><GuideBrowser workspace="defense" /></div>}
@@ -167,9 +170,21 @@ function Results({ result }: { result: any }) {
   );
 }
 
-function Finding({ f }: { f: any }) {
+function Finding({ f, file }: { f: any; file?: string }) {
   const [open, setOpen] = useState(true);
+  const toast = useToast();
   const meta = CONFIDENCE_META[f.confidence] || CONFIDENCE_META.potential;
+  const snippetText = (f.snippet || []).map((s: any) => s.text).join("\n");
+  const saveAsPatch = useMutation({
+    mutationFn: () => post("/patches", {
+      title: `${f.name}`.slice(0, 120), cwe: f.cwe || null, finding_id: f.rule_id || null,
+      filename: file || null, affected_lines: f.line ? String(f.line) : null,
+      original_code: snippetText, patched_code: typeof f.remediation === "string" ? f.remediation : "",
+      notes: f.why_dangerous || null,
+    }),
+    onSuccess: () => toast("ok", "Saved to Patches — open the Patches tab to review the diff"),
+    onError: (e: any) => toast("error", e.message),
+  });
   return (
     <Panel>
       <button className="w-full flex items-center gap-2 px-3 h-11 text-left" onClick={() => setOpen(!open)}>
@@ -201,6 +216,7 @@ function Finding({ f }: { f: any }) {
             {f.remediation && <Labeled label="How to patch"><SmartBlock text={f.remediation} /></Labeled>}
           </div>
           {f.why_patch_works && <Info label="Why the patch works" text={f.why_patch_works} />}
+          {snippetText && <button className="btn btn-sm" disabled={saveAsPatch.isPending} onClick={() => saveAsPatch.mutate()}><GitCompare className="h-3.5 w-3.5" />Save as patch</button>}
           {f.regression_test && <Labeled label="Regression test"><CodeBlock code={f.regression_test} className="max-h-40" /></Labeled>}
           {f.limitations && <Info label="Limitations of this analysis" text={f.limitations} />}
           {f.references?.length > 0 && (
@@ -395,7 +411,7 @@ function ProjectFile({ fe, sev }: { fe: any; sev: string }) {
           {fe.counts.needs_context > 0 && <Badge className="border-line-strong text-ink-faint">{fe.counts.needs_context}</Badge>}
         </span>
       </button>
-      {open && <div className="px-3 pb-3 space-y-3 border-t border-line pt-3">{findings.map((f: any, i: number) => <Finding key={i} f={f} />)}</div>}
+      {open && <div className="px-3 pb-3 space-y-3 border-t border-line pt-3">{findings.map((f: any, i: number) => <Finding key={i} f={f} file={fe.path} />)}</div>}
     </Panel>
   );
 }
