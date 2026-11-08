@@ -22,6 +22,8 @@ jobs:
           python-version: "3.12"
       - name: Install deps
         run: pip install -r requirements-dev.txt
+      - name: Install Semgrep (isolated, for the code-review engine test)
+        run: pipx install semgrep==1.184.0
       - name: Lint
         run: ruff check app tests
       - name: Tests

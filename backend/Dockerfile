@@ -20,6 +20,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+# Semgrep in its OWN venv so its dependency tree never collides with the app's
+# pinned pydantic. Only the launcher is exposed on PATH; the app calls it via
+# subprocess. Keep the pin in sync with the engine and CI.
+ARG SEMGREP_VERSION=1.184.0
+RUN python -m venv /opt/semgrep-venv \
+    && /opt/semgrep-venv/bin/pip install --no-cache-dir "semgrep==${SEMGREP_VERSION}" \
+    && ln -s /opt/semgrep-venv/bin/semgrep /usr/local/bin/semgrep \
+    && semgrep --version
+
 COPY app ./app
 
 # Run as an unprivileged user; data dir is a mounted volume owned by this user.
