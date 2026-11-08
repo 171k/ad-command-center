@@ -5,6 +5,7 @@ import { get, post, upload, del } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { HowToUse } from "../components/HowToUse";
+import { GuideBrowser } from "../components/Guide";
 import { CodeEditor } from "../components/CodeEditor";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { CONFIDENCE_META } from "../lib/format";
@@ -33,6 +34,7 @@ export function Defense() {
             { id: "project", label: <span className="flex items-center gap-1.5"><FolderArchive className="h-3.5 w-3.5" />Project (zip)</span> },
             { id: "rules", label: <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" />Rule library</span> },
             { id: "saved", label: <span className="flex items-center gap-1.5"><FileCode2 className="h-3.5 w-3.5" />Saved</span> },
+            { id: "playbooks", label: <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" />Playbooks</span> },
           ]}
         />
         <HowToUse page="defense" className="mb-1.5" />
@@ -42,6 +44,7 @@ export function Defense() {
         {tab === "project" && <ProjectScan />}
         {tab === "rules" && <RuleLibrary />}
         {tab === "saved" && <Saved />}
+        {tab === "playbooks" && <div className="p-5 max-w-4xl"><GuideBrowser workspace="defense" /></div>}
       </PageBody>
     </>
   );

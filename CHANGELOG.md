@@ -1,5 +1,32 @@
 # Changelog
 
+## [Unreleased]: A&D operations upgrade (branch feat/ad-ops-upgrade, not deployed)
+
+Research-driven upgrade for iHack 2026 (see docs/RESEARCH-iHack2026.md). Deterministic,
+offline, no runtime AI. Nothing runs untrusted code on the server.
+
+### Added
+- **RCE Script Generator** (Attack -> RCE Gen): turns a verified vulnerability into a
+  reusable, editable Python script (requests / raw HTTP / TCP / pwntools), with export.
+  Generation only, never executed here. The target must be a **registered authorised
+  service** (enforced server-side; unauthorised hosts get 403).
+- **tcpdump capture wizard** (SOC -> Capture & IR): builds a bounded, rotated capture
+  command (and a rotate-and-upload variant) from interface/port/filter inputs.
+- **Operational guides** (searchable, copyable parameterized commands, warnings):
+  packet capture, Linux persistence reference, persistence investigation/removal,
+  Docker operations (pull/build/tag/push/save/load), and container recovery. In SOC
+  (Capture & IR) and Defense (Playbooks).
+- New `ops` module + `/api/ops/*` endpoints (`generators.py`, `guides.py`); tests in
+  `test_ops.py` (generated scripts parse, scope 403, tcpdump bounded + injection-safe).
+
+### Deferred / needs more work (honest status)
+- Attack Jobs execution engine (bounded sequential runs of operator scripts) is scoped
+  but not built; execution would stay in the gated sandbox worker. Management/allowlist/
+  emergency-stop UI pending.
+- Defense patch view already shows vulnerable code -> explanation -> patch -> regression
+  test; the unified before/after diff and patch-history/status tracking are not yet added.
+- Optional pkappa2 sidecar is referenced in the guide, not integrated (no stable API).
+
 ## [Unreleased]: Semgrep community ruleset for project scans
 
 - **Much broader vulnerability detection.** The Defense project (zip) scan now
