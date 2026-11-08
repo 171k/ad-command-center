@@ -176,13 +176,26 @@ function Finding({ f, file }: { f: any; file?: string }) {
   const meta = CONFIDENCE_META[f.confidence] || CONFIDENCE_META.potential;
   const snippetText = (f.snippet || []).map((s: any) => s.text).join("\n");
   const saveAsPatch = useMutation({
-    mutationFn: () => post("/patches", {
-      title: `${f.name}`.slice(0, 120), cwe: f.cwe || null, finding_id: f.rule_id || null,
-      filename: file || null, affected_lines: f.line ? String(f.line) : null,
-      original_code: snippetText, patched_code: typeof f.remediation === "string" ? f.remediation : "",
-      notes: f.why_dangerous || null,
-    }),
-    onSuccess: () => toast("ok", "Saved to Patches — open the Patches tab to review the diff"),
+    mutationFn: () => {
+      const rem = typeof f.remediation === "string" ? f.remediation : "";
+      // Only seed the patched side with ACTUAL code. Prose guidance goes to notes,
+      // never into the diff. Default the patched side to the vulnerable code so the
+      // operator edits it into the fix.
+      const remIsCode = rem && isCodeLike(rem);
+      const guidance = [
+        f.description && `What: ${f.description}`,
+        f.why_dangerous && `Exploit: ${f.why_dangerous}`,
+        !remIsCode && rem && `How to patch: ${rem}`,
+        f.why_patch_works && `Why it works: ${f.why_patch_works}`,
+      ].filter(Boolean).join("\n\n");
+      return post("/patches", {
+        title: `${f.name}`.slice(0, 120), cwe: f.cwe || null, finding_id: f.rule_id || null,
+        filename: file || null, affected_lines: f.line ? String(f.line) : null,
+        original_code: snippetText, patched_code: remIsCode ? rem : snippetText,
+        notes: guidance || null,
+      });
+    },
+    onSuccess: () => toast("ok", "Saved to Patches — open the Patches tab, click Edit to write the fix"),
     onError: (e: any) => toast("error", e.message),
   });
   return (
