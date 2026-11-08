@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 from .. import db
-from . import engine
+from . import correlate, engine
 from .enrich import cwe_number, enrich_for_cwe
 
 # Bounds (generous: this runs during prep, not in the request path).
@@ -226,6 +226,83 @@ def _set(job_id: int, **cols) -> None:
     db.execute(f"UPDATE scan_jobs SET {keys} WHERE id=?", (*cols.values(), job_id))
 
 
+def analyze_tree(workdir: Path, files: list[str], progress=None) -> dict:
+    """Scan an already-extracted source tree and return the result dict.
+
+    Pure (no DB): built-in rules + one whole-tree Semgrep run, merged per file,
+    enriched, aggregated, then correlated. `progress(i)` is an optional callback
+    for scanned-file counts. The source is read, never executed.
+    """
+    sg_by_file = _semgrep_dir(workdir)
+
+    per_file: dict[str, list[dict]] = {}
+    for i, rel in enumerate(files):
+        lang = EXT_LANG.get(Path(rel).suffix.lower())
+        try:
+            code = (workdir / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        builtin = engine.analyze(code, lang, use_semgrep=False)["findings"]
+        merged = list(builtin)
+        seen = {(f["line"], cwe_number(f.get("cwe"))) for f in builtin}
+        for sg in sg_by_file.get(rel, []):
+            if (sg["line"], cwe_number(sg.get("cwe"))) not in seen:
+                merged.append(sg)
+        if merged:
+            merged.sort(key=lambda f: (-engine.CONF_ORDER.get(f["confidence"], 0), f["line"]))
+            per_file[rel] = merged
+        if progress and i % 25 == 0:
+            progress(i + 1)
+
+    # Semgrep may flag files the built-in loop skipped (other languages).
+    for rel, sgs in sg_by_file.items():
+        if rel not in per_file and sgs:
+            sgs.sort(key=lambda f: (-engine.CONF_ORDER.get(f["confidence"], 0), f["line"]))
+            per_file[rel] = sgs
+
+    for findings in per_file.values():
+        for f in findings:
+            engine._add_display_fields(f)
+
+    file_entries = []
+    totals = {"strong": 0, "potential": 0, "needs_context": 0}
+    for rel, findings in per_file.items():
+        counts = {"strong": 0, "potential": 0, "needs_context": 0}
+        for f in findings:
+            counts[f["confidence"]] = counts.get(f["confidence"], 0) + 1
+            totals[f["confidence"]] = totals.get(f["confidence"], 0) + 1
+        file_entries.append({"path": rel, "findings": findings, "counts": counts})
+    # Worst files first: strong, then potential, then total.
+    file_entries.sort(key=lambda e: (-e["counts"]["strong"], -e["counts"]["potential"],
+                                     -len(e["findings"]), e["path"]))
+
+    # Evidence-based correlation across files (shared symbols + imports).
+    sources: dict[str, str] = {}
+    for e in file_entries:
+        try:
+            sources[e["path"]] = (workdir / e["path"]).read_text(
+                encoding="utf-8", errors="replace")
+        except OSError:
+            sources[e["path"]] = ""
+    try:
+        related = correlate.build_related(file_entries, sources)
+    except Exception:  # noqa: BLE001 - correlation must never fail a scan
+        related = []
+
+    return {
+        "files": file_entries,
+        "related": related,
+        "totals": totals,
+        "files_with_findings": len(file_entries),
+        "files_scanned": len(files),
+        "finding_count": sum(len(e["findings"]) for e in file_entries),
+        "semgrep_ran": bool(shutil.which("semgrep")),
+        "community_rules": len(_semgrep_configs()) > 1,
+        "disclaimer": "Deterministic static analysis of extracted source. The code is "
+                      "never executed. Findings are patterns, not proven exploitability.",
+    }
+
+
 def scan_project(job_id: int, zip_path: str) -> None:
     """Background worker: extract, scan built-in + Semgrep, aggregate, store, clean up."""
     zp = Path(zip_path)
@@ -236,65 +313,12 @@ def scan_project(job_id: int, zip_path: str) -> None:
         files = stats["source_files"]
         _set(job_id, total_files=len(files), phase="Running Semgrep over the project")
 
-        sg_by_file = _semgrep_dir(workdir)
+        result = analyze_tree(workdir, files, progress=lambda n: _set(job_id, scanned_files=n))
+        result["archive_files"] = stats["file_count"]
+        result["skipped_binary"] = stats["skipped_binary"]
 
-        _set(job_id, phase="Scanning files with built-in rules")
-        per_file: dict[str, list[dict]] = {}
-        for i, rel in enumerate(files):
-            lang = EXT_LANG.get(Path(rel).suffix.lower())
-            try:
-                code = (workdir / rel).read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            builtin = engine.analyze(code, lang, use_semgrep=False)["findings"]
-            merged = list(builtin)
-            seen = {(f["line"], cwe_number(f.get("cwe"))) for f in builtin}
-            for sg in sg_by_file.get(rel, []):
-                if (sg["line"], cwe_number(sg.get("cwe"))) not in seen:
-                    merged.append(sg)
-            if merged:
-                merged.sort(key=lambda f: (-engine.CONF_ORDER.get(f["confidence"], 0), f["line"]))
-                per_file[rel] = merged
-            if i % 25 == 0:
-                _set(job_id, scanned_files=i + 1)
-
-        # Semgrep may flag files the built-in loop skipped (other languages).
-        for rel, sgs in sg_by_file.items():
-            if rel not in per_file and sgs:
-                sgs.sort(key=lambda f: (-engine.CONF_ORDER.get(f["confidence"], 0), f["line"]))
-                per_file[rel] = sgs
-
-        for findings in per_file.values():
-            for f in findings:
-                engine._add_display_fields(f)
-
-        file_entries = []
-        totals = {"strong": 0, "potential": 0, "needs_context": 0}
-        for rel, findings in per_file.items():
-            counts = {"strong": 0, "potential": 0, "needs_context": 0}
-            for f in findings:
-                counts[f["confidence"]] = counts.get(f["confidence"], 0) + 1
-                totals[f["confidence"]] = totals.get(f["confidence"], 0) + 1
-            file_entries.append({"path": rel, "findings": findings, "counts": counts})
-        # Worst files first: strong, then potential, then total.
-        file_entries.sort(key=lambda e: (-e["counts"]["strong"], -e["counts"]["potential"],
-                                         -len(e["findings"]), e["path"]))
-        total_findings = sum(len(e["findings"]) for e in file_entries)
-
-        result = {
-            "files": file_entries,
-            "totals": totals,
-            "files_with_findings": len(file_entries),
-            "files_scanned": len(files),
-            "archive_files": stats["file_count"],
-            "skipped_binary": stats["skipped_binary"],
-            "semgrep_ran": bool(shutil.which("semgrep")),
-            "community_rules": len(_semgrep_configs()) > 1,
-            "disclaimer": "Deterministic static analysis of extracted source. The code is "
-                          "never executed. Findings are patterns, not proven exploitability.",
-        }
         _set(job_id, status="done", phase="Done", scanned_files=len(files),
-             finding_count=total_findings, result=json.dumps(result))
+             finding_count=result["finding_count"], result=json.dumps(result))
     except ScanError as e:
         _set(job_id, status="error", phase="Failed", error=str(e))
     except Exception as e:  # noqa: BLE001 - record any worker failure on the job
