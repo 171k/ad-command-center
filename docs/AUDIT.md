@@ -61,6 +61,9 @@ Test evidence: `backend/tests/` (59 passing, 1 POSIX-only skipped on Windows CI 
 |---|---|---|
 | Upload ELF; format/arch detection | ✅ Verified | `test_pwn.test_upload_analyze_and_persist` |
 | checksec (NX/PIE/RELRO/canary/fortify/stripped) | ✅ Verified | `test_pwn` (full + weak crafted ELFs) |
+| Name the vuln + approach (ret2win / ret2system / fmt) | ✅ Verified | `test_pwn_solver` (classify + compiled fixtures) |
+| Auto-estimate overflow offset (capstone disasm) | ✅ Verified | `test_pwn_solver` (offset 56 on ret2win/ret2system) |
+| Generate tailored pwntools script with offset + addresses | ✅ Verified | `test_pwn_solver` (script asserts) |
 | Symbols / strings / sections | ✅ Verified | analysis output |
 | Cyclic pattern + crash offset | ✅ Verified | `test_pwn.test_cyclic_and_find` |
 | Pack/unpack (arch-aware) | ✅ Verified | `test_pwn.test_pack_unpack` |

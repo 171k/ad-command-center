@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from .. import auth, db
 from ..config import Settings, get_settings
 from ..events_bus import publish
-from ..pwn import analysis
+from ..pwn import analysis, solver
 from ..pwn import pwntools_utils as pu
 
 router = APIRouter()
@@ -162,6 +162,22 @@ async def template(cid: int, host: str = "", port: int = 0, ctx=_require):
     if not r:
         raise HTTPException(404, "Not found")
     return {"template": pu.exploit_template(r["filename"] or "binary", r["arch"] or "amd64", host, port)}
+
+
+@router.get("/cases/{cid}/solve")
+async def solve(cid: int, host: str = "", port: int = 0,
+                s: Settings = Depends(get_settings), ctx=_require):
+    """Static solve: name the vuln, collect gadgets/addresses, estimate the
+    overflow offset and generate a tailored pwntools script. Never executes."""
+    r = db.query_one("SELECT filename, storage_path FROM pwn_cases WHERE id=?", (cid,))
+    if not r:
+        raise HTTPException(404, "Not found")
+    data = _bin_path(s, r["storage_path"]).read_bytes()
+    try:
+        return solver.solve(data, r["filename"] or "binary", str(_bin_path(s, r["storage_path"])),
+                            host=host, port=port)
+    except Exception as e:  # non-ELF or malformed
+        raise HTTPException(400, f"solve failed: {type(e).__name__}: {e}")
 
 
 # ---------------- scripts ----------------
