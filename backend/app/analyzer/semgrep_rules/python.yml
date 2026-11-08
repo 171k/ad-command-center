@@ -1,0 +1,129 @@
+# Offline Semgrep rules for Python. Bundled so the engine runs with --config on a
+# local directory and never contacts the registry. exploit/payload/patch for each
+# finding are filled from the CWE enrichment table in analyzer/enrich.py.
+rules:
+  - id: adcc-py-eval-exec
+    languages: [python]
+    severity: ERROR
+    message: "Dynamic eval()/exec() runs its argument as Python code."
+    metadata:
+      cwe: ["CWE-95"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/95.html"]
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+
+  - id: adcc-py-subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: "subprocess with shell=True runs a shell, enabling command injection."
+    metadata:
+      cwe: ["CWE-78"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/78.html"]
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(..., shell=True, ...)
+          - pattern: subprocess.Popen(..., shell=True, ...)
+          - pattern: subprocess.call(..., shell=True, ...)
+          - pattern: subprocess.check_output(..., shell=True, ...)
+          - pattern: subprocess.check_call(..., shell=True, ...)
+
+  - id: adcc-py-os-system
+    languages: [python]
+    severity: ERROR
+    message: "os.system / os.popen pass a string to the shell, enabling command injection."
+    metadata:
+      cwe: ["CWE-78"]
+      references: ["https://cwe.mitre.org/data/definitions/78.html"]
+    patterns:
+      - pattern-either:
+          - pattern: os.system(...)
+          - pattern: os.popen(...)
+
+  - id: adcc-py-pickle-loads
+    languages: [python]
+    severity: ERROR
+    message: "pickle/marshal deserialization of untrusted data can execute code."
+    metadata:
+      cwe: ["CWE-502"]
+      references: ["https://docs.python.org/3/library/pickle.html"]
+    patterns:
+      - pattern-either:
+          - pattern: pickle.loads(...)
+          - pattern: pickle.load(...)
+          - pattern: marshal.loads(...)
+          - pattern: cPickle.loads(...)
+
+  - id: adcc-py-yaml-load
+    languages: [python]
+    severity: WARNING
+    message: "yaml.load without SafeLoader can instantiate arbitrary objects."
+    metadata:
+      cwe: ["CWE-502"]
+      references: ["https://cwe.mitre.org/data/definitions/502.html"]
+    patterns:
+      - pattern: yaml.load($X)
+
+  - id: adcc-py-ssti-render-template-string
+    languages: [python]
+    severity: ERROR
+    message: "render_template_string on dynamic input allows server-side template injection."
+    metadata:
+      cwe: ["CWE-1336"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://owasp.org/www-project-web-security-testing-guide/"]
+    patterns:
+      - pattern-either:
+          - pattern: flask.render_template_string(...)
+          - pattern: render_template_string(...)
+
+  - id: adcc-py-weak-hash
+    languages: [python]
+    severity: WARNING
+    message: "MD5/SHA1 are weak; unsafe for passwords or integrity."
+    metadata:
+      cwe: ["CWE-328"]
+      references: ["https://cwe.mitre.org/data/definitions/328.html"]
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+
+  - id: adcc-py-weak-random-token
+    languages: [python]
+    severity: WARNING
+    message: "random module is not cryptographically secure; do not use it for tokens or secrets."
+    metadata:
+      cwe: ["CWE-338"]
+      references: ["https://docs.python.org/3/library/secrets.html"]
+    patterns:
+      - pattern-either:
+          - pattern: random.random(...)
+          - pattern: random.randint(...)
+          - pattern: random.choice(...)
+
+  - id: adcc-py-flask-debug
+    languages: [python]
+    severity: WARNING
+    message: "Flask debug=True exposes the Werkzeug debugger (code execution) in production."
+    metadata:
+      cwe: ["CWE-94"]
+      references: ["https://flask.palletsprojects.com/en/latest/debugging/"]
+    patterns:
+      - pattern: $APP.run(..., debug=True, ...)
+
+  - id: adcc-py-requests-verify-false
+    languages: [python]
+    severity: WARNING
+    message: "TLS verification disabled (verify=False) allows man-in-the-middle."
+    metadata:
+      cwe: ["CWE-327"]
+      references: ["https://cwe.mitre.org/data/definitions/295.html"]
+    patterns:
+      - pattern-either:
+          - pattern: requests.get(..., verify=False, ...)
+          - pattern: requests.post(..., verify=False, ...)
+          - pattern: requests.request(..., verify=False, ...)

@@ -16,12 +16,14 @@ assert the code is secure.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
+from .enrich import cwe_number, enrich_for_cwe
 from .rules import LANG_ALIASES, TAINT_SOURCES, Rule, rules_for_language
 
 WINDOW = 3  # lines above/below a sink to look for a taint source
@@ -140,6 +142,10 @@ def analyze(code: str, language: str | None = None, use_semgrep: bool = True) ->
     if use_semgrep and shutil.which("semgrep"):
         sg, note = _run_semgrep(code, detected)
         if sg:
+            # Drop Semgrep findings that duplicate a built-in finding at the same
+            # line and CWE, so the operator sees one entry per issue.
+            seen = {(f["line"], cwe_number(f.get("cwe"))) for f in findings}
+            sg = [s for s in sg if (s["line"], cwe_number(s.get("cwe"))) not in seen]
             findings.extend(sg)
             engine_used = "combined"
         semgrep_note = note
@@ -175,53 +181,79 @@ def analyze(code: str, language: str | None = None, use_semgrep: bool = True) ->
     }
 
 
+_SEV_CONF = {"ERROR": "strong", "WARNING": "potential", "INFO": "needs_context"}
+_SEMGREP_EXT = {"python": ".py", "javascript": ".js", "typescript": ".ts", "php": ".php",
+                "java": ".java", "go": ".go", "c": ".c", "cpp": ".cpp", "ruby": ".rb",
+                "shell": ".sh"}
+
+
 def _run_semgrep(code: str, language: str) -> tuple[list[dict], str]:
-    """Run local Semgrep with bundled custom rules if present. Bounded, offline."""
+    """Run local Semgrep with the bundled offline ruleset. Bounded, no network.
+
+    Each Semgrep finding is enriched from the CWE table so it carries the same
+    four answers as a built-in finding: what it is, how it is exploited, an
+    example payload and how to patch it.
+    """
     import json
 
-    ext = {"python": ".py", "javascript": ".js", "php": ".php", "java": ".java",
-           "c": ".c", "cpp": ".cpp", "shell": ".sh"}.get(language, ".txt")
+    ext = _SEMGREP_EXT.get(language, ".txt")
     rules_dir = Path(__file__).resolve().parent / "semgrep_rules"
+    if not rules_dir.exists() or not any(rules_dir.glob("*.yml")):
+        # Never use --config auto (it fetches from the registry). Offline only.
+        return [], "Semgrep installed but no local ruleset bundled; used built-in rules."
     try:
         with tempfile.TemporaryDirectory() as td:
             src = Path(td) / f"snippet{ext}"
             src.write_text(code, encoding="utf-8")
-            if not rules_dir.exists():
-                # Never use --config auto (it fetches from the registry). Offline-only.
-                return [], "Semgrep installed but no local ruleset bundled; used built-in rules."
             cmd = ["semgrep", "--json", "--quiet", "--timeout", "15",
                    "--metrics=off", "--config", str(rules_dir), str(src)]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            # Force fully offline: no registry version check, no metrics upload.
+            env = {**os.environ, "SEMGREP_ENABLE_VERSION_CHECK": "0",
+                   "SEMGREP_SEND_METRICS": "off"}
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=40, env=env)
             if proc.returncode not in (0, 1):
                 return [], f"Semgrep exited {proc.returncode}: {proc.stderr[:200]}"
             data = json.loads(proc.stdout or "{}")
             out = []
             for r in data.get("results", []):
+                extra = r.get("extra", {})
+                meta = extra.get("metadata", {})
+                cwe_list = meta.get("cwe", []) or []
+                cwe = cwe_list[0] if cwe_list else ""
+                enr = enrich_for_cwe(cwe) or {}
+                conf = _SEV_CONF.get((extra.get("severity") or "WARNING").upper(), "potential")
+                line = r.get("start", {}).get("line", 0)
+                matched = (extra.get("lines", "") or "").strip("\n")
+                owasp = meta.get("owasp", []) or []
+                msg = extra.get("message", "Semgrep finding")
                 out.append(
                     {
-                        "rule_id": r.get("check_id", "semgrep"),
-                        "name": r.get("extra", {}).get("message", "Semgrep finding")[:120],
-                        "cwe": ";".join(r.get("extra", {}).get("metadata", {}).get("cwe", []) or []),
+                        "rule_id": str(r.get("check_id", "semgrep")).split(".")[-1],
+                        "name": msg[:140],
+                        "cwe": cwe,
                         "language": language,
-                        "line": r.get("start", {}).get("line", 0),
-                        "matched_text": (r.get("extra", {}).get("lines", "") or "")[:300],
-                        "confidence": "potential",
-                        "confidence_label": CONF_LABEL["potential"],
-                        "snippet": [],
-                        "description": r.get("extra", {}).get("message", ""),
-                        "why_dangerous": "",
+                        "line": line,
+                        "matched_text": matched[:300],
+                        "confidence": conf,
+                        "confidence_label": CONF_LABEL[conf],
+                        "snippet": [{"line": line, "text": ln, "hit": True}
+                                    for ln in matched.split("\n")] if matched else [],
+                        "description": msg,
+                        "why_dangerous": enr.get("exploit", "") or meta.get("exploit", ""),
                         "preconditions": "",
                         "taint_evidence": None,
                         "test_procedure": "",
-                        "exploit_template": "",
-                        "remediation": r.get("extra", {}).get("fix", "") or "",
+                        "exploit_template": enr.get("payload", "") or meta.get("payload", ""),
+                        "remediation": enr.get("patch", "") or meta.get("patch", "")
+                        or (extra.get("fix", "") or ""),
                         "why_patch_works": "",
                         "regression_test": "",
-                        "references": r.get("extra", {}).get("metadata", {}).get("references", []) or [],
-                        "limitations": "Reported by Semgrep.",
+                        "references": meta.get("references", []) or [],
+                        "limitations": ("Reported by Semgrep (" + ", ".join(owasp) + ").")
+                        if owasp else "Reported by Semgrep.",
                         "engine": "semgrep",
                     }
                 )
-            return out, f"Semgrep ran ({len(out)} findings)."
+            return out, f"Semgrep ran with the bundled ruleset ({len(out)} finding(s))."
     except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as e:
         return [], f"Semgrep unavailable: {type(e).__name__}"

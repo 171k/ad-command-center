@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends, HTTPException
+import os
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from .. import auth, db
@@ -15,6 +17,14 @@ router = APIRouter()
 _require = Depends(auth.require_session)
 
 MAX_CODE = 200_000  # analyze bounded input
+
+# File extension to language, for better detection on uploads.
+EXT_LANG = {
+    ".py": "python", ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
+    ".ts": "typescript", ".tsx": "typescript", ".php": "php", ".java": "java",
+    ".go": "go", ".c": "c", ".h": "c", ".cc": "cpp", ".cpp": "cpp", ".hpp": "cpp",
+    ".rb": "ruby", ".sh": "shell", ".bash": "shell",
+}
 
 
 class AnalyzeIn(BaseModel):
@@ -36,6 +46,38 @@ async def analyze(body: AnalyzeIn, ctx=_require):
         raise HTTPException(413, f"Code exceeds {MAX_CODE} bytes limit for analysis.")
     result = engine.analyze(body.code, body.language, body.use_semgrep)
     auth.audit("defense.analyze", f"lang={result['language']} findings={result['finding_count']}", ctx)
+    return result
+
+
+@router.post("/analyze-file")
+async def analyze_file(
+    file: UploadFile = File(...),
+    language: str | None = None,
+    use_semgrep: bool = True,
+    ctx=_require,
+):
+    raw = await file.read(MAX_CODE + 1)
+    if len(raw) > MAX_CODE:
+        raise HTTPException(413, f"File exceeds {MAX_CODE} bytes limit for analysis.")
+    if b"\x00" in raw:
+        raise HTTPException(415, "Binary file detected. Upload a source-code text file.")
+    try:
+        code = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        code = raw.decode("latin-1", errors="replace")
+    if not code.strip():
+        raise HTTPException(400, "File is empty.")
+    lang = language
+    if not lang and file.filename:
+        lang = EXT_LANG.get(os.path.splitext(file.filename)[1].lower())
+    result = engine.analyze(code, lang, use_semgrep)
+    result["filename"] = file.filename
+    result["source_code"] = code
+    auth.audit(
+        "defense.analyze_file",
+        f"file={file.filename} lang={result['language']} findings={result['finding_count']}",
+        ctx,
+    )
     return result
 
 

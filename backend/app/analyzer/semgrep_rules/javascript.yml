@@ -1,0 +1,74 @@
+# Offline Semgrep rules for JavaScript / TypeScript (incl. Node).
+rules:
+  - id: adcc-js-eval
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "eval()/new Function() executes a string as code."
+    metadata:
+      cwe: ["CWE-95"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/95.html"]
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+
+  - id: adcc-js-child-process-exec
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "child_process.exec runs a shell string, enabling command injection."
+    metadata:
+      cwe: ["CWE-78"]
+      references: ["https://nodejs.org/api/child_process.html"]
+    patterns:
+      - pattern-either:
+          - pattern: child_process.exec(...)
+          - pattern: cp.exec(...)
+          - pattern: exec($CMD, ...)
+
+  - id: adcc-js-inner-html
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: "Assigning to innerHTML/outerHTML with dynamic data can inject script (DOM XSS)."
+    metadata:
+      cwe: ["CWE-79"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/79.html"]
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $X
+          - pattern: $EL.outerHTML = $X
+          - pattern: $EL.insertAdjacentHTML(...)
+
+  - id: adcc-js-document-write
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: "document.write with dynamic data can inject script (XSS)."
+    metadata:
+      cwe: ["CWE-79"]
+      references: ["https://cwe.mitre.org/data/definitions/79.html"]
+    patterns:
+      - pattern: document.write(...)
+
+  - id: adcc-js-weak-random
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: "Math.random is not cryptographically secure; do not use it for tokens."
+    metadata:
+      cwe: ["CWE-338"]
+      references: ["https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues"]
+    patterns:
+      - pattern: Math.random(...)
+
+  - id: adcc-js-res-redirect-tainted
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: "Redirecting to a request-controlled value is an open redirect."
+    metadata:
+      cwe: ["CWE-601"]
+      references: ["https://cwe.mitre.org/data/definitions/601.html"]
+    patterns:
+      - pattern-either:
+          - pattern: res.redirect(req.query.$P)
+          - pattern: res.redirect(req.params.$P)
+          - pattern: res.redirect(req.body.$P)
