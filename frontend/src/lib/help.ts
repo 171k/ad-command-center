@@ -64,6 +64,16 @@ export const HELP: Record<string, HelpDoc> = {
         ],
       },
       {
+        heading: "Project (zip): scan a whole service",
+        ordered: true,
+        steps: [
+          "Upload a zip of the service source (handy when the organizer ships a whole codebase).",
+          "It extracts to a sandbox and scans every file. The code is never run.",
+          "The scan runs in the background; results are grouped by file, worst first.",
+          "Filter by severity and open a file to see each finding with its exploit, payload and patch.",
+        ],
+      },
+      {
         heading: "Rule library",
         steps: [
           "Browse every detection rule so you know exactly what is and isn't checked.",

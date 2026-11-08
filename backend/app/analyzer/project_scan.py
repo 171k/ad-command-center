@@ -1,0 +1,249 @@
+"""Whole-project scan: a service zip is extracted to a sandbox temp dir, statically
+analyzed (built-in rules + Semgrep) and deleted. The source is NEVER executed.
+
+Safety: the archive is untrusted, so extraction guards against zip-slip (path
+traversal), zip bombs (file count and total-size caps), symlinks and oversized
+members. Results are aggregated per file and stored on the scan job.
+"""
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+import zipfile
+from pathlib import Path
+
+from .. import db
+from . import engine
+from .enrich import cwe_number, enrich_for_cwe
+
+# Bounds (generous: this runs during prep, not in the request path).
+MAX_FILES = 5000
+MAX_TOTAL_UNCOMPRESSED = 300 * 1024 * 1024   # 300 MB
+MAX_MEMBER_BYTES = 2 * 1024 * 1024           # 2 MB per source file
+MAX_RATIO = 200                              # per-member compression ratio guard
+SEMGREP_PROC_TIMEOUT = 300                   # seconds for the whole-tree Semgrep run
+
+SKIP_DIRS = {
+    "node_modules", "vendor", ".git", ".svn", ".hg", "dist", "build", "__pycache__",
+    ".venv", "venv", "env", "site-packages", ".next", ".cache", "bower_components",
+    "target", ".idea", ".vscode",
+}
+
+EXT_LANG = {
+    ".py": "python", ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
+    ".ts": "typescript", ".tsx": "typescript", ".php": "php", ".phtml": "php",
+    ".java": "java", ".go": "go", ".c": "c", ".h": "c", ".cc": "cpp", ".cpp": "cpp",
+    ".hpp": "cpp", ".rb": "ruby", ".sh": "shell", ".bash": "shell",
+}
+
+_SEV_CONF = {"ERROR": "strong", "WARNING": "potential", "INFO": "needs_context"}
+
+
+class ScanError(Exception):
+    pass
+
+
+def _is_skipped(rel: Path) -> bool:
+    return any(part in SKIP_DIRS for part in rel.parts)
+
+
+def extract_zip(zip_path: Path, dest: Path) -> dict:
+    """Safely extract a zip into dest. Returns stats and the list of source files."""
+    source_files: list[str] = []
+    total = 0
+    count = 0
+    skipped_binary = 0
+    try:
+        zf = zipfile.ZipFile(zip_path)
+    except zipfile.BadZipFile as e:
+        raise ScanError("Not a valid zip archive.") from e
+    with zf:
+        for info in zf.infolist():
+            if info.is_dir():
+                continue
+            name = info.filename
+            # zip-slip / absolute path guard
+            if name.startswith("/") or ".." in Path(name).parts or ":" in name[:3]:
+                continue
+            rel = Path(name)
+            if _is_skipped(rel):
+                continue
+            # symlink guard (unix external attr high bits encode the mode)
+            mode = info.external_attr >> 16
+            if mode and (mode & 0o170000) == 0o120000:
+                continue
+            if info.file_size > MAX_MEMBER_BYTES:
+                continue
+            if info.compress_size > 0 and info.file_size / info.compress_size > MAX_RATIO \
+                    and info.file_size > 1_000_000:
+                continue
+            count += 1
+            total += info.file_size
+            if count > MAX_FILES:
+                raise ScanError(f"Archive has too many files (limit {MAX_FILES}).")
+            if total > MAX_TOTAL_UNCOMPRESSED:
+                raise ScanError("Archive is too large uncompressed (limit 300 MB).")
+
+            target = (dest / rel).resolve()
+            if not str(target).startswith(str(dest.resolve())):
+                continue  # final belt-and-suspenders path check
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info) as src, open(target, "wb") as out:
+                shutil.copyfileobj(src, out, length=65536)
+
+            if rel.suffix.lower() in EXT_LANG:
+                # treat as source only if it looks like text (no NUL in the head)
+                with open(target, "rb") as fh:
+                    head = fh.read(8192)
+                if b"\x00" in head:
+                    skipped_binary += 1
+                    continue
+                source_files.append(str(rel).replace("\\", "/"))
+
+    return {"source_files": source_files, "file_count": count,
+            "total_bytes": total, "skipped_binary": skipped_binary}
+
+
+def _semgrep_dir(root: Path) -> dict[str, list[dict]]:
+    """Run Semgrep once over the whole tree. Returns {relpath: [finding, ...]}."""
+    if not shutil.which("semgrep"):
+        return {}
+    rules_dir = Path(__file__).resolve().parent / "semgrep_rules"
+    cmd = [
+        "semgrep", "--json", "--quiet", "--metrics=off", "--timeout", "10",
+        "--max-target-bytes", "1500000", "--jobs", "2", "--config", str(rules_dir),
+    ]
+    for d in SKIP_DIRS:
+        cmd += ["--exclude", d]
+    cmd.append(str(root))
+    env = {**os.environ, "SEMGREP_ENABLE_VERSION_CHECK": "0", "SEMGREP_SEND_METRICS": "off"}
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=SEMGREP_PROC_TIMEOUT, env=env)
+    except (subprocess.TimeoutExpired, OSError):
+        return {}
+    if proc.returncode not in (0, 1):
+        return {}
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return {}
+    out: dict[str, list[dict]] = {}
+    for r in data.get("results", []):
+        rel = os.path.relpath(r.get("path", ""), str(root)).replace("\\", "/")
+        extra = r.get("extra", {})
+        meta = extra.get("metadata", {})
+        cwe_list = meta.get("cwe", []) or []
+        cwe = cwe_list[0] if cwe_list else ""
+        enr = enrich_for_cwe(cwe) or {}
+        conf = _SEV_CONF.get((extra.get("severity") or "WARNING").upper(), "potential")
+        line = r.get("start", {}).get("line", 0)
+        matched = (extra.get("lines", "") or "").strip("\n")
+        owasp = meta.get("owasp", []) or []
+        msg = extra.get("message", "Semgrep finding")
+        out.setdefault(rel, []).append({
+            "rule_id": str(r.get("check_id", "semgrep")).split(".")[-1],
+            "name": msg[:140],
+            "cwe": cwe,
+            "line": line,
+            "confidence": conf,
+            "confidence_label": engine.CONF_LABEL[conf],
+            "snippet": [{"line": line, "text": ln, "hit": True} for ln in matched.split("\n")]
+            if matched else [],
+            "description": msg,
+            "why_dangerous": enr.get("exploit", "") or meta.get("exploit", ""),
+            "preconditions": "", "taint_evidence": None, "test_procedure": "",
+            "exploit_template": enr.get("payload", "") or meta.get("payload", ""),
+            "remediation": enr.get("patch", "") or meta.get("patch", "") or (extra.get("fix", "") or ""),
+            "why_patch_works": "", "regression_test": "",
+            "references": meta.get("references", []) or [],
+            "limitations": ("Reported by Semgrep (" + ", ".join(owasp) + ").")
+            if owasp else "Reported by Semgrep.",
+            "engine": "semgrep",
+        })
+    return out
+
+
+def _set(job_id: int, **cols) -> None:
+    cols["updated_at"] = __import__("datetime").datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    keys = ", ".join(f"{k}=?" for k in cols)
+    db.execute(f"UPDATE scan_jobs SET {keys} WHERE id=?", (*cols.values(), job_id))
+
+
+def scan_project(job_id: int, zip_path: str) -> None:
+    """Background worker: extract, scan built-in + Semgrep, aggregate, store, clean up."""
+    zp = Path(zip_path)
+    workdir = Path(tempfile.mkdtemp(prefix="adcc_scan_"))
+    try:
+        _set(job_id, status="running", phase="Extracting archive")
+        stats = extract_zip(zp, workdir)
+        files = stats["source_files"]
+        _set(job_id, total_files=len(files), phase="Running Semgrep over the project")
+
+        sg_by_file = _semgrep_dir(workdir)
+
+        _set(job_id, phase="Scanning files with built-in rules")
+        per_file: dict[str, list[dict]] = {}
+        for i, rel in enumerate(files):
+            lang = EXT_LANG.get(Path(rel).suffix.lower())
+            try:
+                code = (workdir / rel).read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            builtin = engine.analyze(code, lang, use_semgrep=False)["findings"]
+            merged = list(builtin)
+            seen = {(f["line"], cwe_number(f.get("cwe"))) for f in builtin}
+            for sg in sg_by_file.get(rel, []):
+                if (sg["line"], cwe_number(sg.get("cwe"))) not in seen:
+                    merged.append(sg)
+            if merged:
+                merged.sort(key=lambda f: (-engine.CONF_ORDER.get(f["confidence"], 0), f["line"]))
+                per_file[rel] = merged
+            if i % 25 == 0:
+                _set(job_id, scanned_files=i + 1)
+
+        # Semgrep may flag files the built-in loop skipped (other languages).
+        for rel, sgs in sg_by_file.items():
+            if rel not in per_file and sgs:
+                sgs.sort(key=lambda f: (-engine.CONF_ORDER.get(f["confidence"], 0), f["line"]))
+                per_file[rel] = sgs
+
+        file_entries = []
+        totals = {"strong": 0, "potential": 0, "needs_context": 0}
+        for rel, findings in per_file.items():
+            counts = {"strong": 0, "potential": 0, "needs_context": 0}
+            for f in findings:
+                counts[f["confidence"]] = counts.get(f["confidence"], 0) + 1
+                totals[f["confidence"]] = totals.get(f["confidence"], 0) + 1
+            file_entries.append({"path": rel, "findings": findings, "counts": counts})
+        # Worst files first: strong, then potential, then total.
+        file_entries.sort(key=lambda e: (-e["counts"]["strong"], -e["counts"]["potential"],
+                                         -len(e["findings"]), e["path"]))
+        total_findings = sum(len(e["findings"]) for e in file_entries)
+
+        result = {
+            "files": file_entries,
+            "totals": totals,
+            "files_with_findings": len(file_entries),
+            "files_scanned": len(files),
+            "archive_files": stats["file_count"],
+            "skipped_binary": stats["skipped_binary"],
+            "semgrep_ran": bool(shutil.which("semgrep")),
+            "disclaimer": "Deterministic static analysis of extracted source. The code is "
+                          "never executed. Findings are patterns, not proven exploitability.",
+        }
+        _set(job_id, status="done", phase="Done", scanned_files=len(files),
+             finding_count=total_findings, result=json.dumps(result))
+    except ScanError as e:
+        _set(job_id, status="error", phase="Failed", error=str(e))
+    except Exception as e:  # noqa: BLE001 - record any worker failure on the job
+        _set(job_id, status="error", phase="Failed", error=f"{type(e).__name__}: {e}"[:300])
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+        try:
+            zp.unlink(missing_ok=True)
+        except OSError:
+            pass

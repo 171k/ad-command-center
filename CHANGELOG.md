@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]: Defense project scan (zip)
+
+- **Scan a whole service at once.** New Defense "Project (zip)" tab: upload a zip
+  of the service source and the backend extracts it to a sandbox and statically
+  analyzes every file (built-in rules + Semgrep). The source is NEVER executed.
+- Safe extraction guards against zip-slip, zip bombs, symlinks and oversized
+  members; `node_modules`, `vendor`, `.git` and binaries are skipped.
+- Runs as a background job (`POST /api/defense/scan`, poll `/scan/{id}`); results
+  are saved and grouped by file, worst first, with a severity filter. Each finding
+  keeps its line, exploit, example payload and patch.
+
 ## [Unreleased]: Defense code review with Semgrep
 
 - **Defense code review upgraded.** The Analyze tab now runs two deterministic
