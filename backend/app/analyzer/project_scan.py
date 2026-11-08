@@ -24,7 +24,7 @@ MAX_FILES = 5000
 MAX_TOTAL_UNCOMPRESSED = 300 * 1024 * 1024   # 300 MB
 MAX_MEMBER_BYTES = 2 * 1024 * 1024           # 2 MB per source file
 MAX_RATIO = 200                              # per-member compression ratio guard
-SEMGREP_PROC_TIMEOUT = 300                   # seconds for the whole-tree Semgrep run
+SEMGREP_PROC_TIMEOUT = 600                   # seconds for the whole-tree Semgrep run
 
 SKIP_DIRS = {
     "node_modules", "vendor", ".git", ".svn", ".hg", "dist", "build", "__pycache__",
@@ -107,45 +107,76 @@ def extract_zip(zip_path: Path, dest: Path) -> dict:
             "total_bytes": total, "skipped_binary": skipped_binary}
 
 
-def _semgrep_dir(root: Path) -> dict[str, list[dict]]:
-    """Run Semgrep once over the whole tree. Returns {relpath: [finding, ...]}."""
-    if not shutil.which("semgrep"):
-        return {}
-    rules_dir = Path(__file__).resolve().parent / "semgrep_rules"
-    cmd = [
-        "semgrep", "--json", "--quiet", "--metrics=off", "--timeout", "10",
-        "--max-target-bytes", "1500000", "--jobs", "2", "--config", str(rules_dir),
-    ]
+def _semgrep_configs() -> list[str]:
+    """Bundled rules, plus the vendored community ruleset when present (project scan)."""
+    cfgs = [str(Path(__file__).resolve().parent / "semgrep_rules")]
+    community = os.environ.get("ADCC_SEMGREP_COMMUNITY_DIR")
+    if community and Path(community).is_dir():
+        cfgs.append(community)
+    return cfgs
+
+
+def _run_semgrep_cmd(root: Path, configs: list[str]) -> tuple[int, str]:
+    cmd = ["semgrep", "--json", "--quiet", "--metrics=off", "--timeout", "10",
+           "--timeout-threshold", "3", "--max-target-bytes", "1500000", "--jobs", "2"]
+    for cfg in configs:
+        cmd += ["--config", cfg]
     for d in SKIP_DIRS:
         cmd += ["--exclude", d]
     cmd.append(str(root))
     env = {**os.environ, "SEMGREP_ENABLE_VERSION_CHECK": "0", "SEMGREP_SEND_METRICS": "off"}
+    proc = subprocess.run(cmd, capture_output=True, text=True,
+                          timeout=SEMGREP_PROC_TIMEOUT, env=env)
+    return proc.returncode, proc.stdout
+
+
+def _semgrep_dir(root: Path) -> dict[str, list[dict]]:
+    """Run Semgrep once over the whole tree. Returns {relpath: [finding, ...]}.
+
+    Uses the bundled rules plus the vendored community ruleset. If the combined
+    run fails, retries with the bundled rules only so a scan never comes back
+    empty just because a community rule misbehaved.
+    """
+    if not shutil.which("semgrep"):
+        return {}
+    configs = _semgrep_configs()
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=SEMGREP_PROC_TIMEOUT, env=env)
+        rc, stdout = _run_semgrep_cmd(root, configs)
+        if rc not in (0, 1) and len(configs) > 1:
+            rc, stdout = _run_semgrep_cmd(root, configs[:1])  # fall back to bundled only
     except (subprocess.TimeoutExpired, OSError):
         return {}
-    if proc.returncode not in (0, 1):
+    if rc not in (0, 1):
         return {}
     try:
-        data = json.loads(proc.stdout or "{}")
+        data = json.loads(stdout or "{}")
     except json.JSONDecodeError:
         return {}
     out: dict[str, list[dict]] = {}
+    seen: set = set()  # (rel, line, cwe# or rule_id) -> collapse duplicate rules
     for r in data.get("results", []):
         rel = os.path.relpath(r.get("path", ""), str(root)).replace("\\", "/")
         extra = r.get("extra", {})
         meta = extra.get("metadata", {})
         cwe_list = meta.get("cwe", []) or []
-        cwe = cwe_list[0] if cwe_list else ""
-        enr = enrich_for_cwe(cwe) or {}
+        cwe_raw = cwe_list[0] if cwe_list else ""
+        enr = enrich_for_cwe(cwe_raw) or {}
+        num = cwe_number(cwe_raw)
+        cwe = f"CWE-{num}" if num else cwe_raw  # short form for the badge
         conf = _SEV_CONF.get((extra.get("severity") or "WARNING").upper(), "potential")
         line = r.get("start", {}).get("line", 0)
+        rule_id = str(r.get("check_id", "semgrep")).split(".")[-1]
+        # Collapse duplicate rules firing on the same line for the same CWE
+        # (our rule + several community rules often overlap).
+        key = (rel, line, cwe_number(cwe) or rule_id)
+        if key in seen:
+            continue
+        seen.add(key)
         matched = (extra.get("lines", "") or "").strip("\n")
         owasp = meta.get("owasp", []) or []
         msg = extra.get("message", "Semgrep finding")
         out.setdefault(rel, []).append({
-            "rule_id": str(r.get("check_id", "semgrep")).split(".")[-1],
+            "rule_id": rule_id,
             "name": msg[:140],
             "cwe": cwe,
             "line": line,
@@ -232,6 +263,7 @@ def scan_project(job_id: int, zip_path: str) -> None:
             "archive_files": stats["file_count"],
             "skipped_binary": stats["skipped_binary"],
             "semgrep_ran": bool(shutil.which("semgrep")),
+            "community_rules": len(_semgrep_configs()) > 1,
             "disclaimer": "Deterministic static analysis of extracted source. The code is "
                           "never executed. Findings are patterns, not proven exploitability.",
         }
