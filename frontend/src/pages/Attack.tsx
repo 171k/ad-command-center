@@ -6,19 +6,21 @@ import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { Badge, CodeBlock, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { Dialog } from "../components/overlay";
+import { HowToUse } from "../components/HowToUse";
 
 export function Attack() {
   const [tab, setTab] = useState("targets");
   return (
     <>
       <PageHeader title="Attack" subtitle="Authorized targets · recon · exploit knowledge · flags" />
-      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line">
+      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line flex items-end justify-between gap-3">
         <Tabs active={tab} onChange={setTab} tabs={[
           { id: "targets", label: <Tl icon={Crosshair}>Targets</Tl> },
           { id: "recon", label: <Tl icon={Radio}>Recon</Tl> },
           { id: "knowledge", label: <Tl icon={BookOpen}>Knowledge</Tl> },
           { id: "flags", label: <Tl icon={Flag}>Flags</Tl> },
         ]} />
+        <HowToUse page="attack" className="mb-1.5" />
       </div>
       <PageBody>
         {tab === "targets" && <Targets />}

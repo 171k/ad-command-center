@@ -4,6 +4,7 @@ import { Package, Search, Download, Upload, ShieldCheck, Boxes, RefreshCw } from
 import { get, post } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
+import { HowToUse } from "../components/HowToUse";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner } from "../components/ui";
 import { Drawer } from "../components/overlay";
 
@@ -34,6 +35,7 @@ export function Tools() {
         actions={<>
           <button className="btn btn-sm" onClick={() => seedM.mutate()} title="Load/refresh catalog metadata"><RefreshCw className="h-3.5 w-3.5" />Seed</button>
           <button className="btn btn-sm btn-primary" onClick={downloadBundle}><Boxes className="h-3.5 w-3.5" />Offline bundle</button>
+          <HowToUse page="tools" />
         </>} />
       <PageBody>
         <div className="flex flex-wrap gap-2 mb-3">

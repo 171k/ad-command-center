@@ -4,6 +4,7 @@ import { Plus, FileSearch } from "lucide-react";
 import { get, post, put } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
+import { HowToUse } from "../components/HowToUse";
 import { Badge, EmptyState, Panel } from "../components/ui";
 import { Drawer, Dialog } from "../components/overlay";
 import { SEVERITY_META, timeAgo } from "../lib/format";
@@ -32,7 +33,7 @@ export function Findings() {
   return (
     <>
       <PageHeader title="Findings" subtitle="Shared across all sessions · synced live"
-        actions={<button className="btn btn-primary" onClick={() => setCreate(true)}><Plus className="h-4 w-4" />New finding</button>} />
+        actions={<><button className="btn btn-primary" onClick={() => setCreate(true)}><Plus className="h-4 w-4" />New finding</button><HowToUse page="findings" /></>} />
       <PageBody>
         <div className="flex gap-2 mb-3">
           <input className="input w-56" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
