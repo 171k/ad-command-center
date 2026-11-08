@@ -29,6 +29,23 @@ RUN python -m venv /opt/semgrep-venv \
     && ln -s /opt/semgrep-venv/bin/semgrep /usr/local/bin/semgrep \
     && semgrep --version
 
+# Vendor the official Semgrep community ruleset (pinned) for the Defense project
+# scan, so a whole uploaded service is checked against hundreds of rules fully
+# offline (no registry at runtime). Semgrep Rules License v1.0 (see LICENSE in the
+# dir); bundled for internal scanning only, not redistributed. Keep only the
+# languages we care about to control size and noise.
+ARG SEMGREP_RULES_COMMIT=16b9e6d45f10649f6a531ec4838ed9924372c3bc
+RUN curl -fsSL "https://github.com/semgrep/semgrep-rules/archive/${SEMGREP_RULES_COMMIT}.tar.gz" -o /tmp/sr.tgz \
+    && tar xzf /tmp/sr.tgz -C /tmp \
+    && mkdir -p /opt/semgrep-rules \
+    && for d in python javascript typescript java go php ruby c generic html bash; do \
+         cp -r "/tmp/semgrep-rules-${SEMGREP_RULES_COMMIT}/$d" /opt/semgrep-rules/ 2>/dev/null || true; \
+       done \
+    && cp "/tmp/semgrep-rules-${SEMGREP_RULES_COMMIT}/LICENSE" /opt/semgrep-rules/ \
+    && rm -rf /tmp/sr.tgz "/tmp/semgrep-rules-${SEMGREP_RULES_COMMIT}" \
+    && echo "community rule files: $(find /opt/semgrep-rules -name '*.yaml' | wc -l)"
+ENV ADCC_SEMGREP_COMMUNITY_DIR=/opt/semgrep-rules
+
 COPY app ./app
 
 # Run as an unprivileged user; data dir is a mounted volume owned by this user.

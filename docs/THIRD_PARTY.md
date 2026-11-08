@@ -49,6 +49,16 @@ distribution packages them. Semgrep is likewise invoked as a CLI.
 - The deterministic analyzer's taint-proximity confidence scoring and curated
   multi-language rule base.
 
+## Semgrep community ruleset
+
+- Source: `github.com/semgrep/semgrep-rules` (pinned commit), vendored into the
+  backend image at build time for the Defense project scan.
+- License: **Semgrep Rules License v1.0** (LGPL-based with a Commons Clause that
+  restricts selling the rules as a product). We bundle them to scan our own code
+  in a private, internal, non-commercial team tool, and do not redistribute or
+  sell them. Revisit this if the tool is ever commercialized.
+- The `LICENSE` file is copied alongside the rules in the image.
+
 ## Obligations
 
 - Preserve license texts of any tool you redistribute (we redistribute none of

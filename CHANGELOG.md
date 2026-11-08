@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]: Semgrep community ruleset for project scans
+
+- **Much broader vulnerability detection.** The Defense project (zip) scan now
+  runs the built-in rules PLUS the full official **Semgrep community ruleset**
+  (hundreds of rules across Python, JS/TS, Java, Go, PHP, Ruby, C, generic),
+  vendored into the image (pinned commit) so it stays fully offline.
+- Overlapping findings are deduped by line + CWE; CWE still drives the
+  exploit/payload/patch enrichment. If a community rule misbehaves, the scan
+  falls back to the built-in rules so it never comes back empty.
+- The interactive single-file Analyze stays on the fast built-in rules; the
+  heavier community pass runs in the background project scan where latency is fine.
+- Note: static pattern matching cannot find logic/auth/business-logic bugs. A
+  clean scan still does not prove the code is secure.
+
 ## [Unreleased]: Pwn Solver upgrade
 
 - **Names the vulnerability** from imports + checksec: stack buffer overflow

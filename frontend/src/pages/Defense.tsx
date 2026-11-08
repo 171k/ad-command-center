@@ -313,6 +313,7 @@ function ProjectScan() {
               </select>
             </div>
             {!res.semgrep_ran && <p className="text-2xs text-ink-faint mt-2">Semgrep not available on this server; built-in rules only.</p>}
+            {res.semgrep_ran && res.community_rules && <p className="text-2xs text-ink-faint mt-2">Scanned with the built-in rules plus the full Semgrep community ruleset.</p>}
           </Panel>
           {res.files.length === 0
             ? <EmptyState title="No findings" hint="No curated or Semgrep pattern fired across the project. This does not prove it is secure." />
