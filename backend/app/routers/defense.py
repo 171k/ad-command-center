@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from dataclasses import asdict
 
-import os
-
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from .. import auth, db
-from ..analyzer import engine
+from ..analyzer import engine, project_scan
 from ..analyzer.rules import RULES
 from ..events_bus import publish
+
+MAX_ZIP_BYTES = 200 * 1024 * 1024  # 200 MB project archive
 
 router = APIRouter()
 _require = Depends(auth.require_session)
@@ -79,6 +81,48 @@ async def analyze_file(
         ctx,
     )
     return result
+
+
+@router.post("/scan", status_code=202)
+async def start_scan(bg: BackgroundTasks, file: UploadFile = File(...), ctx=_require):
+    """Upload a project zip. It is extracted to a sandbox, statically analyzed
+    (never executed) and scanned in the background. Poll /scan/{id} for the result."""
+    raw = await file.read(MAX_ZIP_BYTES + 1)
+    if len(raw) > MAX_ZIP_BYTES:
+        raise HTTPException(413, "Archive exceeds the 200 MB limit.")
+    if raw[:2] != b"PK":
+        raise HTTPException(415, "Upload a .zip archive.")
+    fd, tmp = tempfile.mkstemp(prefix="adcc_zip_", suffix=".zip")
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(raw)
+    cur = db.execute(
+        "INSERT INTO scan_jobs(filename, status, label) VALUES (?,?,?)",
+        (file.filename, "queued", ctx.label),
+    )
+    job_id = cur.lastrowid
+    bg.add_task(project_scan.scan_project, job_id, tmp)
+    auth.audit("defense.scan", f"file={file.filename} job={job_id}", ctx)
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.get("/scan/{job_id}")
+async def scan_status(job_id: int, ctx=_require):
+    r = db.query_one("SELECT * FROM scan_jobs WHERE id=?", (job_id,))
+    if not r:
+        raise HTTPException(404, "Scan not found.")
+    d = dict(r)
+    if d.get("result"):
+        d["result"] = json.loads(d["result"])
+    return d
+
+
+@router.get("/scans")
+async def list_scans(ctx=_require):
+    rows = db.query(
+        "SELECT id, filename, status, phase, finding_count, total_files, scanned_files, "
+        "created_at, label FROM scan_jobs ORDER BY id DESC LIMIT 50"
+    )
+    return {"items": [dict(r) for r in rows]}
 
 
 @router.post("/save", status_code=201)

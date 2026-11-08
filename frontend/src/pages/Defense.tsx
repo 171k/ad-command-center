@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload } from "lucide-react";
+import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload, FolderArchive } from "lucide-react";
 import { get, post, upload } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
@@ -30,6 +30,7 @@ export function Defense() {
           onChange={setTab}
           tabs={[
             { id: "analyze", label: <span className="flex items-center gap-1.5"><Play className="h-3.5 w-3.5" />Analyze</span> },
+            { id: "project", label: <span className="flex items-center gap-1.5"><FolderArchive className="h-3.5 w-3.5" />Project (zip)</span> },
             { id: "rules", label: <span className="flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5" />Rule library</span> },
             { id: "saved", label: <span className="flex items-center gap-1.5"><FileCode2 className="h-3.5 w-3.5" />Saved</span> },
           ]}
@@ -37,7 +38,8 @@ export function Defense() {
         <HowToUse page="defense" className="mb-1.5" />
       </div>
       <PageBody className="p-0">
-        {tab === "analyze" && <Analyze />}
+        {tab === "analyze" && <Analyze onUseProject={() => setTab("project")} />}
+        {tab === "project" && <ProjectScan />}
         {tab === "rules" && <RuleLibrary />}
         {tab === "saved" && <Saved />}
       </PageBody>
@@ -45,7 +47,7 @@ export function Defense() {
   );
 }
 
-function Analyze() {
+function Analyze({ onUseProject }: { onUseProject: () => void }) {
   const toast = useToast();
   const [code, setCode] = useState(SAMPLE);
   const [lang, setLang] = useState("auto");
@@ -61,6 +63,9 @@ function Analyze() {
   const uploadM = useMutation({
     mutationFn: async (file: File) => {
       const text = await file.text();
+      if (text.includes("\u0000")) {
+        throw new Error("That looks like a binary file. Upload a text source file, or use the Project (zip) tab for a whole project.");
+      }
       setCode(text);
       const q = lang === "auto" ? "" : `&language=${lang}`;
       const fd = new FormData();
@@ -71,10 +76,18 @@ function Analyze() {
     onError: (e: any) => toast("error", e.message),
   });
 
+  const ARCHIVE = /\.(zip|tar|gz|tgz|tar\.gz|rar|7z|jar|war|bz2|xz)$/i;
+
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) uploadM.mutate(f);
     e.target.value = ""; // allow re-selecting the same file
+    if (!f) return;
+    if (ARCHIVE.test(f.name)) {
+      toast("info", "That is an archive. Opening the Project (zip) tab to scan the whole project.");
+      onUseProject();
+      return;
+    }
+    uploadM.mutate(f);
   }
 
   const save = useMutation({
@@ -216,6 +229,137 @@ function Labeled({ label, children }: { label: string; children: any }) {
       </div>
       {children}
     </div>
+  );
+}
+
+function ProjectScan() {
+  const toast = useToast();
+  const [jobId, setJobId] = useState<number | null>(null);
+  const [sev, setSev] = useState("all");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const scans = useQuery({ queryKey: ["scans"], queryFn: () => get("/defense/scans") });
+
+  const startM = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return upload("/defense/scan", fd);
+    },
+    onSuccess: (r: any) => { setJobId(r.job_id); scans.refetch(); },
+    onError: (e: any) => toast("error", e.message),
+  });
+
+  const job = useQuery({
+    queryKey: ["scan", jobId],
+    queryFn: () => get(`/defense/scan/${jobId}`),
+    enabled: jobId != null,
+    refetchInterval: (q: any) => {
+      const s = q.state.data?.status;
+      return s === "done" || s === "error" ? false : 1500;
+    },
+  });
+
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) startM.mutate(f);
+    e.target.value = "";
+  }
+
+  const d: any = job.data;
+  const running = d && (d.status === "queued" || d.status === "running");
+  const res = d?.result;
+
+  return (
+    <div className="p-5 space-y-4 max-w-5xl">
+      <div className="flex flex-wrap items-center gap-2">
+        <input ref={fileRef} type="file" accept=".zip,application/zip" className="hidden" onChange={onPick} />
+        <button className="btn btn-primary" disabled={startM.isPending || running} onClick={() => fileRef.current?.click()}>
+          {startM.isPending ? <Spinner className="text-white" /> : <FolderArchive className="h-4 w-4" />} Upload project zip
+        </button>
+        {(d || startM.isPending) && <button className="btn" onClick={() => setJobId(null)}>New scan</button>}
+        <span className="text-2xs text-ink-faint">Extracted and statically analyzed, never executed. Up to 200 MB. node_modules, vendor and .git are skipped.</span>
+      </div>
+
+      {running && (
+        <Panel bodyClass="p-4">
+          <div className="flex items-center gap-3">
+            <Spinner />
+            <div>
+              <div className="text-sm">{d.phase || "Scanning…"}</div>
+              <div className="text-2xs text-ink-faint">{d.filename} · {d.scanned_files}/{d.total_files || "…"} files</div>
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {d?.status === "error" && (
+        <Panel bodyClass="p-4"><p className="text-sm text-bad">Scan failed: {d.error}</p></Panel>
+      )}
+
+      {res && (
+        <>
+          <Panel bodyClass="p-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Badge className="border-accent/40 text-accent bg-accent/10">{d.filename}</Badge>
+              <span className="text-ink-faint">{res.files_with_findings} file(s) with findings · {d.finding_count} total · {res.files_scanned} scanned</span>
+              {Object.entries(res.totals || {}).filter(([, v]: any) => v > 0).map(([k, v]: any) => (
+                <Badge key={k} className={CONFIDENCE_META[k]?.cls || "border-line-strong"}>{CONFIDENCE_META[k]?.label || k}: {v}</Badge>
+              ))}
+              <select className="input ml-auto w-44" value={sev} onChange={(e) => setSev(e.target.value)}>
+                <option value="all">All severities</option>
+                <option value="potential">Potential and up</option>
+                <option value="strong">Strong only</option>
+              </select>
+            </div>
+            {!res.semgrep_ran && <p className="text-2xs text-ink-faint mt-2">Semgrep not available on this server; built-in rules only.</p>}
+          </Panel>
+          {res.files.length === 0
+            ? <EmptyState title="No findings" hint="No curated or Semgrep pattern fired across the project. This does not prove it is secure." />
+            : res.files.map((fe: any) => <ProjectFile key={fe.path} fe={fe} sev={sev} />)}
+          <p className="text-2xs text-ink-faint px-1">{res.disclaimer}</p>
+        </>
+      )}
+
+      {!d && !startM.isPending && (
+        <Panel title="Recent scans">
+          {(scans.data?.items || []).length === 0
+            ? <div className="p-4 text-sm text-ink-faint">No scans yet. Upload a project zip to start.</div>
+            : <div className="divide-y divide-line">
+                {scans.data.items.map((s: any) => (
+                  <button key={s.id} className="w-full text-left p-3 flex items-center gap-2 text-sm row-hover" onClick={() => setJobId(s.id)}>
+                    <FolderArchive className="h-4 w-4 text-ink-faint" />
+                    <span className="font-medium">{s.filename || `scan #${s.id}`}</span>
+                    <Badge className="border-line-strong text-ink-dim">{s.status}</Badge>
+                    <span className="ml-auto text-2xs text-ink-faint">{s.finding_count} findings · {s.created_at} · {s.label}</span>
+                  </button>
+                ))}
+              </div>}
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+function ProjectFile({ fe, sev }: { fe: any; sev: string }) {
+  const [open, setOpen] = useState(false);
+  const order: any = { strong: 2, potential: 1, needs_context: 0 };
+  const min = sev === "strong" ? 2 : sev === "potential" ? 1 : 0;
+  const findings = fe.findings.filter((f: any) => (order[f.confidence] ?? 0) >= min);
+  if (findings.length === 0) return null;
+  return (
+    <Panel>
+      <button className="w-full flex items-center gap-2 px-3 h-11 text-left" onClick={() => setOpen(!open)}>
+        {open ? <ChevronDown className="h-4 w-4 text-ink-faint" /> : <ChevronRight className="h-4 w-4 text-ink-faint" />}
+        <span className="text-sm font-medium mono truncate">{fe.path}</span>
+        <span className="ml-auto flex items-center gap-1.5 shrink-0">
+          {fe.counts.strong > 0 && <Badge className={CONFIDENCE_META.strong.cls}>{fe.counts.strong}</Badge>}
+          {fe.counts.potential > 0 && <Badge className={CONFIDENCE_META.potential.cls}>{fe.counts.potential}</Badge>}
+          {fe.counts.needs_context > 0 && <Badge className="border-line-strong text-ink-faint">{fe.counts.needs_context}</Badge>}
+        </span>
+      </button>
+      {open && <div className="px-3 pb-3 space-y-3 border-t border-line pt-3">{findings.map((f: any, i: number) => <Finding key={i} f={f} />)}</div>}
+    </Panel>
   );
 }
 

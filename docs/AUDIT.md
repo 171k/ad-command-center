@@ -21,6 +21,7 @@ Test evidence: `backend/tests/` (59 passing, 1 POSIX-only skipped on Windows CI 
 |---|---|---|
 | Identify vulnerabilities in pasted code (deterministic, no AI) | ✅ Verified | `test_analyzer.py` (SQLi/CMDi/XSS/SSTI/SSRF/…) |
 | Code review via Semgrep + built-in rules, with file upload | ✅ Verified | `test_defense.py` (paste, upload, binary/empty reject, Semgrep enrichment) |
+| Whole-project scan: upload a zip, extract safely (never executed), scan the tree | ✅ Verified | `test_defense_scan.py` (grouped-by-file, node_modules excluded, non-zip reject) |
 | Exploit, example payload and patch per finding | ✅ Verified | `test_enrich.py` + `test_defense.py` |
 | Confidence grading; "no match ≠ secure" | ✅ Verified | `test_analyzer` |
 | Prepare patches + regression tests (per finding) | ✅ Verified | analyzer output includes patch + regression |
