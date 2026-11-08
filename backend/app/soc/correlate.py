@@ -2,7 +2,7 @@
 
 Groups related events into coherent offenses so that, e.g., 10,000 automated
 SQLi payloads against one service become ONE offense with counts and preserved
-representative/strongest evidence — not 10,000 rows in the UI.
+representative/strongest evidence, not 10,000 rows in the UI.
 
 Grouping key: (category, dest_ip, dest_port, src_ip) within a sliding
 correlation window. Different techniques from the same source are NOT merged.
@@ -137,7 +137,7 @@ def ingest_one(ev: dict, rec: dict | None, conn) -> dict:
 def _offense_evidence(conn, offense_id: int, outcome: str) -> str:
     """Summarize offense evidence: the strongest event's classification, computed
     against its ORIGINAL record (parsed from the stored raw) so proof signals
-    (response bodies, app_proof) are preserved — not lost to re-classification."""
+    (response bodies, app_proof) are preserved, not lost to re-classification."""
     top = conn.execute(
         "SELECT * FROM events WHERE offense_id=? "
         "ORDER BY CASE outcome WHEN 'confirmed' THEN 3 WHEN 'possible' THEN 2 "

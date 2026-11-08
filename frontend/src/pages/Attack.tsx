@@ -93,7 +93,7 @@ function Targets() {
                     <td className="td">
                       {s.last_health
                         ? <span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${s.last_health.status === "online" ? "bg-ok" : s.last_health.status === "offline" ? "bg-bad" : "bg-ink-faint"}`} />{s.last_health.status}</span>
-                        : <span className="text-ink-faint">—</span>}
+                        : <span className="text-ink-faint">-</span>}
                     </td>
                     <td className="td text-right whitespace-nowrap">
                       <button className="btn btn-ghost btn-sm" onClick={() => checkM.mutate(s.id)} title="Check now"><Activity className="h-3.5 w-3.5" /></button>
@@ -160,7 +160,7 @@ function Recon() {
           <L label="Target (registered scope only)">
             <select className="input" value={sel} onChange={(e) => setSel(e.target.value)}>
               <option value="">Select target…</option>
-              {targets.map((t: any) => <option key={t.id} value={t.id}>{t.name} — {t.host}:{t.port} {t.authorized ? "" : "(not authorized)"}</option>)}
+              {targets.map((t: any) => <option key={t.id} value={t.id}>{t.name} · {t.host}:{t.port} {t.authorized ? "" : "(not authorized)"}</option>)}
             </select>
           </L>
           <L label="HTTP path"><input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} /></L>
@@ -261,7 +261,7 @@ function Flags() {
             <tbody>{data.items.map((f: any) => (
               <tr key={f.id}><td className="td mono">{f.id}</td>
                 <td className="td"><Badge className={f.status === "accepted" ? "border-ok/30 text-ok bg-ok/10" : f.status === "rejected" ? "border-bad/30 text-bad bg-bad/10" : "border-line-strong text-ink-dim"}>{f.status}</Badge></td>
-                <td className="td">{f.service_id ?? "—"}</td><td className="td">{f.label ?? "—"}</td><td className="td text-ink-faint">{f.created_at}</td></tr>
+                <td className="td">{f.service_id ?? "-"}</td><td className="td">{f.label ?? "-"}</td><td className="td text-ink-faint">{f.created_at}</td></tr>
             ))}</tbody>
           </table>}
       </Panel>

@@ -43,7 +43,7 @@ Test evidence: `backend/tests/` (59 passing, 1 POSIX-only skipped on Windows CI 
 | Export evidence | ⚠️ Partial | event export + payload inspector present; no single "case PDF" export |
 | Clear demo/sample data | ✅ Verified | `test_api.test_clear_soc_data` |
 
-## NEW — Tool Repository (P1)
+## NEW: Tool Repository (P1)
 | Capability | Status | Evidence |
 |---|---|---|
 | Catalog (16 tools, license/provenance/per-OS install) | ✅ Verified | `test_tools` |
@@ -53,7 +53,7 @@ Test evidence: `backend/tests/` (59 passing, 1 POSIX-only skipped on Windows CI 
 | `adtools` CLI (online + offline) | ✅ Implemented | offline path tested; online path uses same endpoints |
 | Hosted binary artifacts for every tool | ⚠️ Partial | mechanism works; **admin uploads the actual binaries** (license-reviewed) during prep |
 
-## NEW — Pwn Solver (P2)
+## NEW: Pwn Solver (P2)
 | Capability | Status | Evidence |
 |---|---|---|
 | Upload ELF; format/arch detection | ✅ Verified | `test_pwn.test_upload_analyze_and_persist` |
@@ -70,7 +70,7 @@ Test evidence: `backend/tests/` (59 passing, 1 POSIX-only skipped on Windows CI 
 - Per-user accounts (itik/mejik/gha/namia), shared operational data. ✅ Verified:
   `test_auth.test_two_users_concurrent_sessions`, `test_auth.test_password_change_is_per_user`.
 - **Data-overwrite risk:** records are append/edit by id; there is **no optimistic-
-  locking / conflict detection** on simultaneous edits of the *same* record — last
+  locking / conflict detection** on simultaneous edits of the *same* record, last
   write wins. Live SSE sync reduces blind overwrites but does not prevent them.
   ⚠️ Recommend: assign one owner per offense/finding during the match.
 
@@ -87,7 +87,7 @@ Test evidence: `backend/tests/` (59 passing, 1 POSIX-only skipped on Windows CI 
 - No Claude/OpenAI/DeepSeek/other AI API required; no autonomous AI agent;
   all solver/analysis is deterministic. ✅ (no AI SDKs in `requirements.txt`).
 - Potentially-restricted functions are **config-gated**: task runner, pwn exec,
-  flag submission, scheduled jobs — all off by default.
+  flag submission, scheduled jobs, all off by default.
 - ⚠️ **For organizer approval:** confirm that hosting a tool repository, running a
-  local pwn sandbox, and active recon against opponent targets are permitted.
+  local pwn sandbox and active recon against opponent targets are permitted.
   Keep gated features off unless approved.

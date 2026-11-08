@@ -1,4 +1,4 @@
--- A&D Command Center — initial schema
+-- A&D Command Center, initial schema
 -- One shared account; multiple concurrent sessions; optional session labels.
 
 -- ---------- Account & auth ----------

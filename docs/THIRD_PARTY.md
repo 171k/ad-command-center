@@ -1,7 +1,7 @@
 # Third-party tools & licenses
 
 The objective is to combine proven tools with focused original engineering, not
-to rewrite everything. This records what is reused, how, and under what license.
+to rewrite everything. This records what is reused, how and under what license.
 Verify versions on your host; pin them in your environment.
 
 ## Runtime dependencies (bundled / installed)
@@ -24,7 +24,7 @@ Verify versions on your host; pin them in your environment.
 ## External tools (integrated by adapter, not vendored)
 
 These are **not** bundled; the app calls them if present and degrades if not. We
-did not fork or copy their source — we integrate via their documented interfaces.
+did not fork or copy their source, we integrate via their documented interfaces.
 
 | Tool | Role | Integration | License |
 |---|---|---|---|
@@ -53,5 +53,5 @@ distribution packages them. Semgrep is likewise invoked as a CLI.
 
 - Preserve license texts of any tool you redistribute (we redistribute none of
   the external IDS/parsers; they are installed from upstream packages).
-- If you add code copied from a GPL project, that file inherits GPL — prefer the
+- If you add code copied from a GPL project, that file inherits GPL, prefer the
   adapter pattern used here instead.

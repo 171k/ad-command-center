@@ -1,6 +1,6 @@
 """Static binary analysis: combines the pure-Python ELF/checksec parse with
 optional binutils enrichment (file/readelf/objdump) when those are installed.
-Everything here only *reads/parses* the uploaded binary — it is never executed.
+Everything here only *reads/parses* the uploaded binary, it is never executed.
 """
 from __future__ import annotations
 

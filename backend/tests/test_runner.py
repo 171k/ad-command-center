@@ -1,4 +1,4 @@
-"""Sandboxed runner: gate, allowlist, validation, timeout, and (POSIX) memory cap."""
+"""Sandboxed runner: gate, allowlist, validation, timeout and (POSIX) memory cap."""
 import os
 
 import pytest

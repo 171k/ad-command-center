@@ -141,7 +141,7 @@ function Utils() {
           {out === null ? <EmptyState title="No output" /> :
             out.ok === false ? <div className="text-sm text-bad bg-bad/10 border border-bad/30 rounded p-2">{out.error}</div> :
               <CodeBlock code={typeof out.result === "string" ? out.result : JSON.stringify(out.result, null, 2)} className="max-h-[55vh]" />}
-          {op === "jwt_decode" && out?.ok && <p className="text-2xs text-warn mt-2">Signature is NOT verified — claims only.</p>}
+          {op === "jwt_decode" && out?.ok && <p className="text-2xs text-warn mt-2">Signature is NOT verified, claims only.</p>}
         </div>
       </Panel>
     </div>
@@ -251,8 +251,8 @@ function Health() {
                 <td className="td font-medium">{s.name}</td>
                 <td className="td mono">{s.host}{s.port ? `:${s.port}` : ""}</td>
                 <td className="td">{s.last_health ? <span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${s.last_health.status === "online" ? "bg-ok" : s.last_health.status === "offline" ? "bg-bad" : "bg-ink-faint"}`} />{s.last_health.status}</span> : <span className="text-ink-faint">unknown</span>}</td>
-                <td className="td mono">{s.last_health?.latency_ms != null ? `${s.last_health.latency_ms} ms` : "—"}</td>
-                <td className="td text-ink-faint">{s.last_health?.checked_at ?? "—"}</td>
+                <td className="td mono">{s.last_health?.latency_ms != null ? `${s.last_health.latency_ms} ms` : "-"}</td>
+                <td className="td text-ink-faint">{s.last_health?.checked_at ?? "-"}</td>
               </tr>
             ))}</tbody>
           </table>}

@@ -43,7 +43,7 @@ def cyclic(length: int, n: int = 4) -> bytes:
 
 
 def cyclic_find(sub, n: int = 4) -> int:
-    """Return the offset of `sub` (str/bytes/int) within the cyclic pattern, or -1."""
+    """Return the offset of `sub` (str/bytes/int) within the cyclic pattern or -1."""
     if isinstance(sub, int):
         sub = struct.pack("<I", sub)  # treat as little-endian 32-bit leak
     if isinstance(sub, str):

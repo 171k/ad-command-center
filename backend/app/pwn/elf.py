@@ -1,6 +1,6 @@
 """Minimal, dependency-free ELF parser + checksec.
 
-Parses (never executes) an ELF to report format, architecture, and exploit
+Parses (never executes) an ELF to report format, architecture and exploit
 mitigations (NX, PIE, RELRO, stack canary, Fortify). Pure-Python so it works on
 the 4GB VM without binutils/pwntools; readelf/objdump are used only to *enrich*
 symbol/disassembly views when present (see analysis.py).

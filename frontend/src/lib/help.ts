@@ -8,38 +8,38 @@ export const HELP: Record<string, HelpDoc> = {
   attack: {
     title: "Attack",
     intro:
-      "Your offense cockpit. It organizes targets, recon and captured flags. It does NOT run exploits for you — actual attacks run on your Kali box.",
+      "Your offense cockpit. It organizes targets, recon and captured flags. It does NOT run exploits for you. Actual attacks run on your Kali box.",
     sections: [
       {
-        heading: "Targets — define your scope first",
+        heading: "Targets: define your scope first",
         ordered: true,
         steps: [
           "Click “Add target” and enter the name, host/IP, port and protocol.",
           "Set Owner: “ours” (a service you defend) or “opponent” (a box you attack).",
           "Tick “Authorized” only on opponent boxes the rules let you probe.",
-          "Anything not registered here is refused by the server — register before you touch it.",
+          "Anything not registered here is refused by the server, so register before you touch it.",
         ],
       },
       {
-        heading: "Recon — safe, light probing",
+        heading: "Recon: safe, light probing",
         steps: [
           "Pick a registered target from the dropdown.",
-          "Run TCP connect, Banner grab, or HTTP inspect — all bounded and timeout-limited.",
+          "Run TCP connect, Banner grab or HTTP inspect, all bounded and timeout-limited.",
           "Heavy scanning (nmap, ffuf, dirb) still runs on Kali; this is just a quick first look.",
         ],
       },
       {
-        heading: "Knowledge — the playbook",
+        heading: "Knowledge: the playbook",
         steps: [
           "Search common vulnerability classes (SQLi, command injection, SSTI…).",
-          "Expand an entry for preconditions, a safe test, and a copy-paste exploit template.",
+          "Expand an entry for preconditions, a safe test and a copy-paste exploit template.",
           "Use this to learn WHAT to try when you're stuck.",
         ],
       },
       {
-        heading: "Flags — track every capture",
+        heading: "Flags: track every capture",
         steps: [
-          "Paste a captured flag and click Add — duplicates are detected automatically.",
+          "Paste a captured flag and click Add. Duplicates are detected automatically.",
           "“Submit pending” pushes to the organizer API (currently OFF until configured).",
           "Until then, also submit flags on the official scoreboard yourself.",
         ],
@@ -51,22 +51,22 @@ export const HELP: Record<string, HelpDoc> = {
   defense: {
     title: "Defense",
     intro:
-      "Find and fix vulnerabilities in YOUR own services. Everything is rule-based (no AI). A clean result means “nothing obvious found” — never “guaranteed safe”.",
+      "Find and fix vulnerabilities in YOUR own services. Everything is rule-based (no AI). A clean result means “nothing obvious found,” never “guaranteed safe.”",
     sections: [
       {
-        heading: "Analyze — scan your code",
+        heading: "Analyze: scan your code",
         ordered: true,
         steps: [
           "Paste your service's source code into the editor.",
-          "Pick the language, or leave it on Auto.",
+          "Pick the language or leave it on Auto.",
           "Click Analyze.",
-          "Review each finding: its confidence, a suggested patch, and a regression test.",
+          "Review each finding: its confidence, a suggested patch and a regression test.",
         ],
       },
       {
         heading: "Rule library",
         steps: [
-          "Browse every detection rule so you know exactly what is — and isn't — checked.",
+          "Browse every detection rule so you know exactly what is and isn't checked.",
         ],
       },
       {
@@ -79,7 +79,7 @@ export const HELP: Record<string, HelpDoc> = {
 
   automation: {
     title: "Automation",
-    intro: "Shared helpers for the whole team — scripts, encoders/decoders, and a safe local runner.",
+    intro: "Shared helpers for the whole team: scripts, encoders/decoders and a safe local runner.",
     sections: [
       {
         heading: "Scripts",
@@ -96,7 +96,7 @@ export const HELP: Record<string, HelpDoc> = {
         heading: "Runner",
         steps: [
           "Runs a small set of SAFE, local-only tools (hash-id, dictionary check, wordlist, entropy) in a sandbox.",
-          "It never touches opponent targets — those stay manual on Kali.",
+          "It never touches opponent targets. Those stay manual on Kali.",
         ],
       },
       {
@@ -104,16 +104,16 @@ export const HELP: Record<string, HelpDoc> = {
         steps: ["Live up/down status of every service you registered."],
       },
     ],
-    tip: "Reach for Utilities before searching for an online decoder — it's faster and keeps your data off the internet.",
+    tip: "Reach for Utilities before searching for an online decoder. It's faster and keeps your data off the internet.",
   },
 
   soc: {
     title: "Network / SOC",
     intro:
-      "See who is attacking you. It reads logs from your defended service, groups attacks into “offenses”, and marks each CONFIRMED only when there's real proof.",
+      "See who is attacking you. It reads logs from your defended service, groups attacks into “offenses” and marks each CONFIRMED only when there's real proof.",
     sections: [
       {
-        heading: "Setup — do this FIRST",
+        heading: "Setup: do this FIRST",
         steps: [
           "The SOC stays empty until a log source is wired up.",
           "Open the Setup tab and follow it to point your service's logs (Suricata EVE JSON or access logs) here.",
@@ -128,7 +128,7 @@ export const HELP: Record<string, HelpDoc> = {
         heading: "Offenses",
         steps: [
           "Each row is a correlated attack campaign (e.g. an SQLi flood).",
-          "Open one to see the evidence, add notes, or send it straight to Defense as a finding.",
+          "Open one to see the evidence, add notes or send it straight to Defense as a finding.",
         ],
       },
       {
@@ -139,7 +139,7 @@ export const HELP: Record<string, HelpDoc> = {
         ],
       },
     ],
-    tip: "If the dashboard looks empty, nobody has connected a log source yet — start on the Setup tab.",
+    tip: "If the dashboard looks empty, nobody has connected a log source yet. Start on the Setup tab.",
   },
 
   pwn: {
@@ -161,7 +161,7 @@ export const HELP: Record<string, HelpDoc> = {
         heading: "Utilities",
         steps: [
           "Cyclic pattern generator + crash-offset finder (to locate the return address).",
-          "Arch-aware pack/unpack — the common byte-math for buffer overflows.",
+          "Arch-aware pack/unpack: the common byte-math for buffer overflows.",
         ],
       },
     ],
@@ -181,14 +181,14 @@ export const HELP: Record<string, HelpDoc> = {
         heading: "Browse & install",
         steps: [
           "Search or filter by category. Each tool shows its license and a per-OS install command.",
-          "Download an artifact — every file is SHA-256 checksum-verified against tampering.",
+          "Download an artifact. Every file is SHA-256 checksum-verified against tampering.",
         ],
       },
       {
         heading: "Offline bundle",
         steps: [
           "Click “Offline bundle” to export everything as one file for an air-gapped laptop.",
-          "Install later from it with the included adtools CLI — no internet needed.",
+          "Install later from it with the included adtools CLI, no internet needed.",
         ],
       },
     ],
@@ -198,7 +198,7 @@ export const HELP: Record<string, HelpDoc> = {
   findings: {
     title: "Findings",
     intro:
-      "The team's shared log of everything you discover — vulns, exploits, notes — synced live across all four of you.",
+      "The team's shared log of everything you discover (vulns, exploits, notes), synced live across all four of you.",
     sections: [
       {
         heading: "Create",

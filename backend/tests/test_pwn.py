@@ -1,4 +1,4 @@
-"""Pwn Solver: deterministic utilities, checksec on crafted ELFs, gadget search,
+"""Pwn Solver: deterministic utilities, checksec on crafted ELFs, gadget search
 and the case upload/analysis/persistence API (acceptance criteria 4-9)."""
 import struct
 
@@ -8,7 +8,7 @@ from app.pwn import pwntools_utils as pu
 
 # ---- minimal ELF builder (enough to exercise the static parser deterministically) ----
 def make_elf(etype=2, machine=0x3E, interp=True, nx=True, relro="Full", exec_payload=b"\x5f\xc3\xc3"):
-    phdrs = []  # (p_type, p_flags, payload) — offsets filled below
+    phdrs = []  # (p_type, p_flags, payload), offsets filled below
     phdrs.append(("LOAD", 0x1, 0x5, exec_payload))            # R+X segment with gadgets
     phdrs.append(("GNU_STACK", 0x6474E551, 0x6 if nx else 0x7, b""))
     if interp:

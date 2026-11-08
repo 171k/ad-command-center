@@ -132,7 +132,7 @@ function CaseDetail({ cid, onDelete }: { cid: number; onDelete: () => void }) {
             </div>
           )) : <Spinner />}
           {gadgets && Object.keys(gadgets.gadgets || {}).length === 0 && <div className="text-xs text-ink-faint">No common gadgets found.</div>}
-          {gadgets?.pie && <div className="text-2xs text-warn">PIE — addresses are offsets; add the runtime base.</div>}
+          {gadgets?.pie && <div className="text-2xs text-warn">PIE: addresses are offsets; add the runtime base.</div>}
         </div>
       </Panel>
 

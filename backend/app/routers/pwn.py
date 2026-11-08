@@ -45,7 +45,7 @@ async def cyclic(body: CyclicIn, ctx=_require):
 
 
 class CyclicFindIn(BaseModel):
-    value: str  # text, hex (0x..), or leaked bytes
+    value: str  # text, hex (0x..) or leaked bytes
 
 
 @router.post("/cyclic-find")

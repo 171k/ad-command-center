@@ -21,7 +21,7 @@ line to the sensor endpoint with a token from **SOC → Sensors**.
 ### PCAP
 
 Upload `.pcap`/`.pcapng` in **SOC → Sensors → Upload PCAP**. The server validates
-magic bytes, caps size (`ADCC_MAX_UPLOAD_BYTES`), and runs
+magic bytes, caps size (`ADCC_MAX_UPLOAD_BYTES`) and runs
 `tshark -Y http.request -T fields …` out-of-process to extract HTTP transactions,
 which flow through the normal correlation path. Without tshark the feature is
 disabled and says so; other ingestion still works.
@@ -30,10 +30,10 @@ disabled and says so; other ingestion still works.
 
 Ship structured HTTP access logs as `access_logs` rows (`src_ip`, `method`, `url`,
 `query`, `status`, `host`, optional `response_body` for outcome evidence). **Do not
-log** passwords, cookies, or authorization headers. Request-body logging must be a
+log** passwords, cookies or authorization headers. Request-body logging must be a
 deliberate, scoped choice at the app/proxy layer.
 
-## TLS visibility — important
+## TLS visibility: important
 
 Passive PCAP of HTTPS shows the handshake and SNI but **not** decrypted request or
 response bodies. You cannot classify most app-layer outcomes from encrypted PCAP

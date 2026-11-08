@@ -120,7 +120,7 @@ def main():
         print(f"    PASSIVE/IDS-only visibility   -> {passive_o['outcome'].upper()} "
               "(same exploit, but no proof -> SIEM does NOT claim success).")
     ok = full and full["outcome"] == "confirmed" and passive_o and passive_o["outcome"] != "confirmed"
-    print("\nRESULT:", "PASS — evidence-based classification verified." if ok else "CHECK OUTPUT")
+    print("\nRESULT:", "PASS, evidence-based classification verified." if ok else "CHECK OUTPUT")
     sys.exit(0 if ok else 1)
 
 

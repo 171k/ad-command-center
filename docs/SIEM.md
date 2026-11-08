@@ -7,7 +7,7 @@ they send? What should we do?* It prioritizes meaningful offenses over raw volum
 ## 1. Ingestion & normalization
 
 Inputs: Suricata **EVE JSON** (`alert`, `http`, `flow`, `fileinfo`), structured
-HTTP **access logs**, and **PCAP** (HTTP via tshark). Each record is normalized
+HTTP **access logs** and **PCAP** (HTTP via tshark). Each record is normalized
 (`app/soc/normalize.py`) into one internal event schema with:
 
 - connection 5-tuple, flow/transaction IDs, HTTP method/URL/status/host,
@@ -29,8 +29,8 @@ Events are grouped into **offenses** by
 against the *event's own timestamp*.
 
 - 10,000 automated SQLi attempts against one service ⇒ **one** offense with
-  `event_count`, `distinct_payloads`, first/last seen, and a pointer to the
-  **strongest-evidence** event — not 10,000 rows.
+  `event_count`, `distinct_payloads`, first/last seen and a pointer to the
+  **strongest-evidence** event, not 10,000 rows.
 - Different techniques from the same source are **not** merged.
 - A later, stronger event **upgrades** the existing offense (and reopens a
   resolved/suppressed one) instead of spawning a redundant offense. A single
@@ -42,8 +42,8 @@ Deliberately conservative. Each outcome carries a transparent evidence list.
 
 | Outcome | Requires |
 |---|---|
-| **CONFIRMED** | Direct, attributable application-level proof tied to the request: an instrumented service recording an unauthorized action, a verified flag read, or a command-output marker echoed in the response. **Never** from an IDS signature, a 200, or a 500 alone. |
-| **POSSIBLE** | A suspicious exploit payload **plus** a corroborating response anomaly: SQL-error leakage, a reflected XSS payload, a template-evaluation result (`{{7*7}}`→`49`), or a 500 with an injection payload (marked "suggestive, not proof"). |
+| **CONFIRMED** | Direct, attributable application-level proof tied to the request: an instrumented service recording an unauthorized action, a verified flag read or a command-output marker echoed in the response. **Never** from an IDS signature, a 200 or a 500 alone. |
+| **POSSIBLE** | A suspicious exploit payload **plus** a corroborating response anomaly: SQL-error leakage, a reflected XSS payload, a template-evaluation result (`{{7*7}}`→`49`) or a 500 with an injection payload (marked "suggestive, not proof"). |
 | **BLOCKED** | Evidence a control stopped it (403/406/429, WAF `action=blocked`) with no contradictory success evidence. |
 | **ATTEMPTED / UNKNOWN** | An attack pattern was seen but the outcome cannot be determined. |
 
@@ -52,7 +52,7 @@ When telemetry is missing, the UI says so rather than guessing.
 
 ## 4. Noise reduction
 
-The default offense list prioritizes **confirmed → possible → other severe**, and
+The default offense list prioritizes **confirmed → possible → other severe** and
 collapses suppressed and routine blocked/attempted-low offenses. Everything stays
 searchable via a toggle and the Event Explorer. Newly observed techniques and
 upgrade-worthy evidence are never silenced.
@@ -75,7 +75,7 @@ contribution is documented; the system does not assume correlation it cannot sup
 
 Batched writes under one transaction, indexed event fields, aggregated offense
 counters, bounded payload display, retention by age and max-event count
-(`ADCC_MAX_EVENTS`, `ADCC_EVENT_RETENTION_DAYS`), and an ingest cap
+(`ADCC_MAX_EVENTS`, `ADCC_EVENT_RETENTION_DAYS`) and an ingest cap
 (`ADCC_INGEST_QUEUE_MAX`). Heavy packet parsing (tshark) runs out-of-process. The
 system indicates when evidence is truncated or expired rather than claiming full
 visibility.

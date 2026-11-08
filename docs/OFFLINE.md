@@ -1,8 +1,8 @@
 # Offline / air-gapped operation
 
-The Command Center is designed to run with **no GitHub, Azure, external API, CDN,
+The Command Center is designed to run with **no GitHub, Azure, external API, CDN
 or AI service** at runtime. This guide covers running it entirely locally for the
-competition (Windows 11 + WSL2/Docker, or any Linux with Docker).
+competition (Windows 11 + WSL2/Docker or any Linux with Docker).
 
 ## What works offline
 
@@ -14,17 +14,17 @@ competition (Windows 11 + WSL2/Docker, or any Linux with Docker).
 | Deterministic analysis (code rules, checksec, cyclic/pack, utilities) | ✅ |
 | Live cross-session sync (SSE) | ✅ (local) |
 | Recon / service health | ✅ against hosts reachable on your LAN |
-| HTTPS with a public cert | ❌ needs internet for ACME — use plain HTTP locally |
+| HTTPS with a public cert | ❌ needs internet for ACME, use plain HTTP locally |
 | GitHub auto-deploy | ❌ not needed offline; update by rebuilding locally |
 
 Fonts: the UI links Google Fonts when online but **falls back to system fonts**
-offline — no external font is *required*.
+offline, no external font is *required*.
 
 ## Prerequisites (one-time, while you still have internet)
 
 1. Install Docker Desktop (Windows) or Docker Engine (Linux). On Windows enable
    the WSL2 backend.
-2. Copy this repository to the machine (USB/zip is fine — no `git` needed).
+2. Copy this repository to the machine (USB/zip is fine, no `git` needed).
 3. Pre-build the images so no pulls are needed later:
    ```bash
    docker compose -f docker-compose.offline.yml build
@@ -33,7 +33,7 @@ offline — no external font is *required*.
    air-gapped box: `docker save adcc-command-center-backend adcc-command-center-web -o adcc-images.tar`
    then `docker load -i adcc-images.tar` on the target.
 5. Download the **offline tool bundle** from a running instance (Tool Repository →
-   *Offline bundle*, or `adtools offline-export`) and keep it with the repo.
+   *Offline bundle* or `adtools offline-export`) and keep it with the repo.
 
 ## Start it (offline)
 
@@ -41,7 +41,7 @@ offline — no external font is *required*.
 docker compose -f docker-compose.offline.yml up -d --build
 ```
 ```bash
-# first run only — create the team accounts
+# first run only: create the team accounts
 docker compose -f docker-compose.offline.yml exec backend python -m app.admin seed-users --default "<a-strong-password>"
 ```
 
@@ -71,16 +71,16 @@ docker compose -f docker-compose.offline.yml down
 docker compose -f docker-compose.offline.yml up -d
 ```
 
-Per-feature portable exports also exist: SOC event export, the tool bundle, and
+Per-feature portable exports also exist: SOC event export, the tool bundle and
 saved pwntools scripts (copy/download from the UI).
 
 ## Verify it is truly offline
 
-1. Start the stack, sign in, create a finding, upload a binary — confirm they work.
-2. **Disconnect the network** (airplane mode / `docker network disconnect`, or pull
+1. Start the stack, sign in, create a finding, upload a binary, confirm they work.
+2. **Disconnect the network** (airplane mode / `docker network disconnect` or pull
    the cable).
 3. `docker compose -f docker-compose.offline.yml restart`.
-4. Reload http://localhost:8080 — login, findings, SOC, Pwn, and the tool bundle
+4. Reload http://localhost:8080, login, findings, SOC, Pwn and the tool bundle
    all still work; your records survived the restart.
 
 ## Troubleshooting
@@ -89,6 +89,6 @@ saved pwntools scripts (copy/download from the UI).
 |---|---|
 | Port 8080 in use | set `OFFLINE_PORT=9090` and re-up |
 | `seed-users` says accounts exist | they're already created; just log in |
-| Can't reach the site | `docker compose -f docker-compose.offline.yml ps` — both services `Up`? check `logs` |
+| Can't reach the site | `docker compose -f docker-compose.offline.yml ps`, both services `Up`? check `logs` |
 | PCAP upload disabled | `tshark` is in the image; if you built with `INSTALL_TSHARK=false`, rebuild |
-| Lost data after `down -v` | `-v` deletes volumes — never use it; restore from backup |
+| Lost data after `down -v` | `-v` deletes volumes, never use it; restore from backup |

@@ -1,5 +1,5 @@
 export function timeAgo(iso?: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const t = new Date(iso.replace(" ", "T") + (iso.includes("Z") ? "" : "Z")).getTime();
   if (Number.isNaN(t)) return iso;
   const s = Math.floor((Date.now() - t) / 1000);
@@ -45,4 +45,4 @@ export const TECHNIQUE_LABEL: Record<string, string> = {
   other: "Other",
 };
 
-export const tech = (c?: string) => (c ? TECHNIQUE_LABEL[c] ?? c : "—");
+export const tech = (c?: string) => (c ? TECHNIQUE_LABEL[c] ?? c : "-");

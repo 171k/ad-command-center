@@ -2,8 +2,7 @@
 """Local, isolated sandbox worker for crash analysis and exploit testing.
 
 This runs on YOUR machine (Kali/Ubuntu/WSL2), NOT on the Command Center server.
-Uploaded challenge binaries are untrusted, so the web app never executes them —
-you run them here, under isolation, and paste the results back into the case.
+Uploaded challenge binaries are untrusted, so the web app never executes them:you run them here, under isolation and paste the results back into the case.
 
 Isolation (best-effort, strongest available on the host):
   - non-root (run as a low-priv user; never root)
@@ -87,7 +86,7 @@ def _execute(argv, stdin_data: bytes, timeout: int, cpu: int):
         "network_isolated": network_isolated,
         "stdout": out[:8192].decode("latin-1", "replace"),
         "stderr": err[:8192].decode("latin-1", "replace"),
-        "hint": ("SIGSEGV — memory corruption; inspect with: gdb -q <bin> -ex 'run < input' -ex bt"
+        "hint": ("SIGSEGV, memory corruption; inspect with: gdb -q <bin> -ex 'run < input' -ex bt"
                  if sig == "SIGSEGV" else None),
     }
 

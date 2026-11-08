@@ -25,27 +25,27 @@ export const GUIDES: Guide[] = [
     ],
     verify: "ls -lh /var/pcaps && sudo tcpdump -r /var/pcaps/svc.pcap -c 5",
     troubleshoot: [
-      { problem: "Permission denied", fix: "Run with sudo, or grant capabilities: sudo setcap cap_net_raw,cap_net_admin+eip $(which tcpdump)" },
+      { problem: "Permission denied", fix: "Run with sudo or grant capabilities: sudo setcap cap_net_raw,cap_net_admin+eip $(which tcpdump)" },
       { problem: "Disk filling up", fix: "Use -C and -W to cap total size; mount /var/pcaps on a separate volume." },
     ],
   },
   {
     id: "suricata",
     tool: "Suricata",
-    purpose: "Network IDS that emits EVE JSON alerts/HTTP records — the primary feed for the SOC.",
+    purpose: "Network IDS that emits EVE JSON alerts/HTTP records, the primary feed for the SOC.",
     platforms: "Ubuntu · Debian",
     steps: [
       { label: "Install (official PPA has current builds)", cmd: "sudo add-apt-repository ppa:oisf/suricata-stable && sudo apt-get update && sudo apt-get install -y suricata" },
       { label: "Set the monitored interface", cmd: "sudo suricata-update && sudo sed -i 's/^\\( *\\)- interface: .*/\\1- interface: eth0/' /etc/suricata/suricata.yaml" },
-      { label: "Confirm EVE JSON output is enabled", note: "In /etc/suricata/suricata.yaml, under outputs → eve-log, ensure `enabled: yes`, `filetype: regular`, `filename: eve.json`, and the `types` list includes alert, http, flow, fileinfo." },
+      { label: "Confirm EVE JSON output is enabled", note: "In /etc/suricata/suricata.yaml, under outputs → eve-log, ensure `enabled: yes`, `filetype: regular`, `filename: eve.json` and the `types` list includes alert, http, flow, fileinfo." },
       { label: "Enable payload capture on alerts", note: "Set `payload: yes` and `payload-printable: yes` under the alert eve type so the SOC can show what was sent." },
       { label: "Run", cmd: "sudo suricata -c /etc/suricata/suricata.yaml -i eth0 -D" },
       { label: "Forward EVE to the SOC (see seeded script)", cmd: "SENSOR_TOKEN=... URL=https://host/api/soc/ingest/sensor EVE=/var/log/suricata/eve.json ./eve-forward.sh" },
     ],
     verify: "sudo tail -f /var/log/suricata/eve.json | grep -m1 event_type",
     troubleshoot: [
-      { problem: "No events in SOC", fix: "Confirm eve.json is growing, the sensor token is valid, and the forwarder reaches /api/soc/ingest/sensor (check Sensors → last seen)." },
-      { problem: "High CPU", fix: "Reduce ruleset with suricata-update --disable-conf, or pin the capture to the target port via BPF: suricata ... --bpf-filter 'port 8080'." },
+      { problem: "No events in SOC", fix: "Confirm eve.json is growing, the sensor token is valid and the forwarder reaches /api/soc/ingest/sensor (check Sensors → last seen)." },
+      { problem: "High CPU", fix: "Reduce ruleset with suricata-update --disable-conf or pin the capture to the target port via BPF: suricata ... --bpf-filter 'port 8080'." },
     ],
   },
   {
@@ -77,7 +77,7 @@ export const GUIDES: Guide[] = [
   {
     id: "tulip",
     tool: "Tulip (OpenAttackDefenseTools)",
-    purpose: "A/D traffic browser. Optional integration — keep it on a separate collector, not the 4GB app VPS.",
+    purpose: "A/D traffic browser. Optional integration: keep it on a separate collector, not the 4GB app VPS.",
     platforms: "Docker",
     steps: [
       { label: "Clone", cmd: "git clone https://github.com/OpenAttackDefenseTools/tulip.git && cd tulip" },

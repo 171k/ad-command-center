@@ -46,7 +46,7 @@ export function HowToUse({ page, className = "" }: { page: string; className?: s
             <div className="rounded-md border border-accent/30 bg-accent/5 p-3 text-xs text-ink-dim flex gap-2">
               <Lightbulb className="h-4 w-4 text-accent shrink-0 mt-0.5" />
               <span>
-                <span className="text-accent font-semibold">Tip for beginners — </span>
+                <span className="text-accent font-semibold">Tip for beginners: </span>
                 {doc.tip}
               </span>
             </div>

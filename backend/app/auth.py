@@ -2,7 +2,7 @@
 
 Four teammates (itik, mejik, gha, namia) each have their own username and
 password. Application data (findings, offenses, scripts, SIEM) is deliberately
-shared — accounts exist for access control and attribution, not data isolation.
+shared, accounts exist for access control and attribution, not data isolation.
 
 SessionCtx keeps a `.label` attribute (now the username) so the rest of the API
 continues to attribute activity exactly as before.
@@ -178,7 +178,7 @@ class SessionCtx:
         self.row = row
         self.fingerprint = token_hash(token)[:12]
         self.user_id = row.get("user_id")
-        self.label = row.get("label")       # username — preserves attribution API
+        self.label = row.get("label")       # username, preserves attribution API
         self.username = row.get("label")
         self.ip = row.get("ip")
 

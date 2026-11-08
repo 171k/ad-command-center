@@ -118,7 +118,7 @@ print("OK: injection rejected")
         "language": "python",
         "category": "exploitation_templates",
         "kind": "exploit_template",
-        "notes": "Verification template — authorized lab targets only. Distinguishes behaviour, not a universal exploit.",
+        "notes": "Verification template, authorized lab targets only. Distinguishes behaviour, not a universal exploit.",
         "body": '''#!/usr/bin/env python3
 """Boolean-based SQLi verification against an AUTHORIZED lab endpoint."""
 import sys, httpx
@@ -186,7 +186,7 @@ def demo_events(target_ip: str = "10.10.0.5", target_port: int = 8080) -> list[d
                         random.choice(_SQLI), sig="ET WEB SQL Injection Attempt",
                         ts=f"2026-11-07T10:{i // 60:02d}:{i % 60:02d}"))
     # 2) one POSSIBLE within the SAME burst: a SQL error leaks in the response.
-    #    This must UPGRADE the existing SQLi offense (not spawn a new one), and
+    #    This must UPGRADE the existing SQLi offense (not spawn a new one) and
     #    remain discoverable even though thousands of prior attempts failed.
     evs.append(_eve(atk, target_ip, target_port, "GET", "/item?id=1' OR '1'='1", 500,
                     "id=1' OR '1'='1", sig="ET WEB SQL Injection Attempt",

@@ -2,11 +2,11 @@
 
 Purpose: prove the SIEM classifies CONFIRMED only from real application-level
 evidence. This is a genuine (deliberately insecure) web app with a real SQL
-injection, a real secret flag in its database, and instrumentation that emits
+injection, a real secret flag in its database and instrumentation that emits
 Suricata-EVE-shaped telemetry for every request.
 
 The instrumentation is the key idea: the service KNOWS its own flag, so when a
-response actually contains the flag it emits `app_proof` — direct, attributable
+response actually contains the flag it emits `app_proof`, direct, attributable
 evidence that the flag was disclosed to a specific client on a specific request.
 That is exactly the evidence the SIEM's CONFIRMED path requires.
 

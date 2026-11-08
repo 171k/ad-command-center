@@ -59,7 +59,7 @@ export function Tools() {
                   <span className="text-sm font-medium">{t.name}</span>
                   {t.artifact_count > 0 && <Badge className="border-ok/30 text-ok bg-ok/10"><Download className="h-3 w-3" />{t.artifact_count}</Badge>}
                 </div>
-                <div className="text-2xs text-ink-faint mt-0.5">{t.category} · {t.license || "—"}{t.version ? ` · v${t.version}` : ""}</div>
+                <div className="text-2xs text-ink-faint mt-0.5">{t.category} · {t.license || "-"}{t.version ? ` · v${t.version}` : ""}</div>
                 <p className="text-xs text-ink-dim mt-1.5 line-clamp-2">{t.description}</p>
               </button>
             ))}
@@ -108,10 +108,10 @@ function ToolDetail({ slug, onClose }: { slug: string; onClose: () => void }) {
           </div>
           <p className="text-sm text-ink-dim">{t.description}</p>
           {t.provenance && <div className="text-2xs text-ink-faint">Source: <span className="mono">{t.provenance}</span></div>}
-          <div className="text-2xs text-ink-faint">OS: {(t.os_support || []).join(", ") || "—"} · Deps: {(t.dependencies || []).join(", ") || "none"}</div>
+          <div className="text-2xs text-ink-faint">OS: {(t.os_support || []).join(", ") || "-"} · Deps: {(t.dependencies || []).join(", ") || "none"}</div>
 
           <Panel title="Hosted artifacts">
-            {(t.artifacts || []).length === 0 ? <div className="p-3 text-xs text-ink-faint">No hosted files yet. Upload one below, or follow the install instructions.</div> : (
+            {(t.artifacts || []).length === 0 ? <div className="p-3 text-xs text-ink-faint">No hosted files yet. Upload one below or follow the install instructions.</div> : (
               <table className="w-full"><tbody>
                 {t.artifacts.map((a: any) => (
                   <tr key={a.id} className="border-b border-line/60">

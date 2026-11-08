@@ -2,7 +2,7 @@ name: Deploy
 
 # Secure deploy: a GitHub-hosted runner joins your private Tailscale tailnet as
 # an EPHEMERAL, tagged node (tag:ci), reaches ONLY the VM's SSH port (enforced by
-# your tailnet ACL), and deploys over that private link. No public SSH rule, no
+# your tailnet ACL) and deploys over that private link. No public SSH rule, no
 # permanent self-hosted runner. Runs only after CI passes on `main`, gated by the
 # vars.DEPLOY_ENABLED flag, in the protected `production` environment.
 on:
@@ -40,7 +40,7 @@ jobs:
           host: ${{ vars.DEPLOY_HOST }}              # VM tailnet IP (vars, not a secret)
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # Pin the server's host key — verification is enforced, not skipped.
+          # Pin the server's host key: verification is enforced, not skipped.
           fingerprint: ${{ vars.DEPLOY_SSH_FINGERPRINT }}
           script: |
             set -euo pipefail
@@ -56,7 +56,7 @@ jobs:
               fi
               sleep 4
             done
-            echo "Health check failed — rolling back to $PREV"
+            echo "Health check failed, rolling back to $PREV"
             git reset --hard "$PREV"
             docker compose up -d --build
             exit 1

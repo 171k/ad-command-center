@@ -1,4 +1,4 @@
-"""Password hashing, token generation, and CSRF helpers.
+"""Password hashing, token generation and CSRF helpers.
 
 - Passwords hashed with Argon2id (argon2-cffi defaults are memory-hard and modern).
 - Session tokens are high-entropy random strings; only their SHA-256 hash is
