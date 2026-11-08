@@ -60,6 +60,7 @@ async def status_(request: Request, s: Settings = Depends(get_settings)):
         "configured": auth.any_user_configured(),
         "authenticated": bool(row),
         "username": username,
+        "is_admin": bool(username and username.lower() in s.admin_user_set),
         "totp_enabled": totp_enabled,
         "users": auth.TEAM_USERS,
         "app_name": s.app_name,
@@ -117,13 +118,13 @@ async def logout(response: Response, s: Settings = Depends(get_settings),
 
 
 @router.get("/sessions")
-async def sessions(ctx: auth.SessionCtx = Depends(auth.require_session)):
+async def sessions(ctx: auth.SessionCtx = Depends(auth.require_admin)):
     return {"sessions": auth.list_sessions(), "current": ctx.fingerprint}
 
 
 @router.post("/sessions/revoke-all")
-async def revoke_all(ctx: auth.SessionCtx = Depends(auth.require_session)):
-    """Revoke this user's OTHER sessions (does not touch other teammates)."""
+async def revoke_all(ctx: auth.SessionCtx = Depends(auth.require_admin)):
+    """Admin: revoke this account's OTHER sessions."""
     n = auth.revoke_all(user_id=ctx.user_id)
     auth.audit("sessions.revoke_all", f"count={n}", ctx)
     return {"ok": True, "revoked": n}
