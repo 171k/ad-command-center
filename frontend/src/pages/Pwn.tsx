@@ -88,7 +88,13 @@ function CaseDetail({ cid, onDelete }: { cid: number; onDelete: () => void }) {
   const { data: c } = useQuery({ queryKey: ["pwn-case", cid], queryFn: () => get(`/pwn/cases/${cid}`) });
   const { data: gadgets } = useQuery({ queryKey: ["pwn-gadgets", cid], queryFn: () => get(`/pwn/cases/${cid}/gadgets`) });
   const { data: tmpl } = useQuery({ queryKey: ["pwn-tmpl", cid], queryFn: () => get(`/pwn/cases/${cid}/template`) });
-  const { data: sol } = useQuery({ queryKey: ["pwn-solve", cid], queryFn: () => get(`/pwn/cases/${cid}/solve`) });
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("");
+  const [target, setTarget] = useState({ host: "", port: "" });
+  const { data: sol } = useQuery({
+    queryKey: ["pwn-solve", cid, target.host, target.port],
+    queryFn: () => get(`/pwn/cases/${cid}/solve?host=${encodeURIComponent(target.host)}&port=${target.port || 0}`),
+  });
   const [script, setScript] = useState("");
   const defaultScript = sol?.script || tmpl?.template || "";
   const saveScript = useMutation({
@@ -126,7 +132,19 @@ function CaseDetail({ cid, onDelete }: { cid: number; onDelete: () => void }) {
       </Panel>
 
       {sol && (
-        <Panel title={<span className="flex items-center gap-2"><Target className="h-4 w-4 text-accent" />Solve</span>}>
+        <Panel
+          title={<span className="flex items-center gap-2"><Target className="h-4 w-4 text-accent" />Solve</span>}
+          actions={
+            <div className="flex items-center gap-1.5">
+              <input className="input h-7 w-36 text-xs" placeholder="target host" value={host}
+                onChange={(e) => setHost(e.target.value.trim())} />
+              <input className="input h-7 w-20 text-xs mono" placeholder="port" value={port}
+                onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ""))} />
+              <button className="btn btn-sm" title="Fill host/port into the generated script"
+                onClick={() => { setTarget({ host, port }); setScript(""); }}>Apply</button>
+            </div>
+          }
+        >
           <div className="p-3 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-accent/40 text-accent bg-accent/10 text-sm">{sol.vuln}</Badge>
