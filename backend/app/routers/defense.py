@@ -125,6 +125,15 @@ async def list_scans(ctx=_require):
     return {"items": [dict(r) for r in rows]}
 
 
+@router.delete("/scan/{job_id}", status_code=204)
+async def delete_scan(job_id: int, ctx=_require):
+    r = db.query_one("SELECT id FROM scan_jobs WHERE id=?", (job_id,))
+    if not r:
+        raise HTTPException(404, "Scan not found.")
+    db.execute("DELETE FROM scan_jobs WHERE id=?", (job_id,))
+    auth.audit("defense.scan_delete", f"job={job_id}", ctx)
+
+
 @router.post("/save", status_code=201)
 async def save(body: SaveIn, ctx=_require):
     cur = db.execute(

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload, FolderArchive } from "lucide-react";
-import { get, post, upload } from "../lib/api";
+import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload, FolderArchive, Trash2 } from "lucide-react";
+import { get, post, upload, del } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { HowToUse } from "../components/HowToUse";
@@ -268,6 +268,12 @@ function ProjectScan() {
     onError: (e: any) => toast("error", e.message),
   });
 
+  const deleteM = useMutation({
+    mutationFn: (id: number) => del(`/defense/scan/${id}`),
+    onSuccess: (_r, id) => { if (jobId === id) setJobId(null); scans.refetch(); toast("ok", "Scan deleted"); },
+    onError: (e: any) => toast("error", e.message),
+  });
+
   const job = useQuery({
     queryKey: ["scan", jobId],
     queryFn: () => get(`/defense/scan/${jobId}`),
@@ -296,6 +302,8 @@ function ProjectScan() {
           {startM.isPending ? <Spinner className="text-white" /> : <FolderArchive className="h-4 w-4" />} Upload project zip
         </button>
         {(d || startM.isPending) && <button className="btn" onClick={() => setJobId(null)}>New scan</button>}
+        {d && jobId && <button className="btn text-bad" disabled={deleteM.isPending} title="Delete this scan"
+          onClick={() => { if (confirm("Delete this scan?")) deleteM.mutate(jobId); }}><Trash2 className="h-4 w-4" />Delete</button>}
         <span className="text-2xs text-ink-faint">Extracted and statically analyzed, never executed. Up to 200 MB. node_modules, vendor and .git are skipped.</span>
       </div>
 
@@ -346,12 +354,19 @@ function ProjectScan() {
             ? <div className="p-4 text-sm text-ink-faint">No scans yet. Upload a project zip to start.</div>
             : <div className="divide-y divide-line">
                 {scans.data.items.map((s: any) => (
-                  <button key={s.id} className="w-full text-left p-3 flex items-center gap-2 text-sm row-hover" onClick={() => setJobId(s.id)}>
-                    <FolderArchive className="h-4 w-4 text-ink-faint" />
-                    <span className="font-medium">{s.filename || `scan #${s.id}`}</span>
-                    <Badge className="border-line-strong text-ink-dim">{s.status}</Badge>
-                    <span className="ml-auto text-2xs text-ink-faint">{s.finding_count} findings · {s.created_at} · {s.label}</span>
-                  </button>
+                  <div key={s.id} className="p-3 flex items-center gap-2 text-sm row-hover">
+                    <button className="flex items-center gap-2 text-left flex-1 min-w-0" onClick={() => setJobId(s.id)}>
+                      <FolderArchive className="h-4 w-4 text-ink-faint shrink-0" />
+                      <span className="font-medium truncate">{s.filename || `scan #${s.id}`}</span>
+                      <Badge className="border-line-strong text-ink-dim">{s.status}</Badge>
+                      <span className="ml-auto text-2xs text-ink-faint whitespace-nowrap pl-2">{s.finding_count} findings · {s.created_at} · {s.label}</span>
+                    </button>
+                    <button className="btn btn-ghost btn-sm text-bad shrink-0" title="Delete scan"
+                      disabled={deleteM.isPending}
+                      onClick={() => { if (confirm(`Delete scan "${s.filename || s.id}"?`)) deleteM.mutate(s.id); }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 ))}
               </div>}
         </Panel>
