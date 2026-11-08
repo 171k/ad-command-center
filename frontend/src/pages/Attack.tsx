@@ -176,9 +176,56 @@ function Recon() {
       <Panel title={`Result${kind ? ` · ${kind}` : ""}`}>
         <div className="p-3">
           {!out ? <EmptyState title="No probe run" hint="Pick a target and run a probe." /> :
-            <CodeBlock code={JSON.stringify(out, null, 2)} className="max-h-[60vh]" />}
+            <ReconResult kind={kind} out={out} />}
         </div>
       </Panel>
+    </div>
+  );
+}
+
+const Rlabel = ({ children }: any) => <div className="text-2xs font-semibold uppercase tracking-wider text-ink-faint mb-1">{children}</div>;
+
+function ReconResult({ kind, out }: { kind: string; out: any }) {
+  return (
+    <div className="space-y-3 max-h-[62vh] overflow-auto">
+      {kind === "http" && (
+        <>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Badge className={(out.status_code ?? 0) < 400 ? "border-ok/30 text-ok bg-ok/10" : "border-warn/40 text-warn bg-warn/10"}>HTTP {out.status_code}</Badge>
+            {out.latency_ms != null && <Badge className="border-line-strong text-ink-dim">{out.latency_ms} ms</Badge>}
+            {out.content_type && <Badge className="border-line-strong text-ink-dim">{out.content_type}</Badge>}
+          </div>
+          {out.tech_fingerprint?.length > 0 && (
+            <div><Rlabel>Tech fingerprint</Rlabel>
+              <div className="flex flex-wrap gap-1.5">{out.tech_fingerprint.map((t: string, i: number) => <Badge key={i} className="border-accent/40 text-accent bg-accent/10">{t}</Badge>)}</div></div>
+          )}
+          {out.headers && (
+            <div><Rlabel>Response headers</Rlabel>
+              <div className="well rounded-md divide-y divide-line/60 text-xs">
+                {Object.entries(out.headers).map(([k, v]: any) => (
+                  <div key={k} className="flex gap-3 px-2.5 py-1.5"><span className="mono text-ink-faint w-36 shrink-0 break-all">{k}</span><span className="mono text-ink-dim break-all min-w-0">{String(v)}</span></div>
+                ))}
+              </div></div>
+          )}
+          {out.body_preview && (
+            <div><Rlabel>Body preview</Rlabel><CodeBlock code={out.body_preview} className="max-h-72" wrap /></div>
+          )}
+        </>
+      )}
+      {kind === "banner" && (
+        out.banner ? <CodeBlock code={out.banner} wrap /> : <p className="text-sm text-ink-faint">No banner. This port did not return a plaintext service banner (normal for HTTPS).</p>
+      )}
+      {kind === "tcp" && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge className={out.status === "online" ? "border-ok/30 text-ok bg-ok/10" : "border-bad/40 text-bad bg-bad/10"}>{out.status}</Badge>
+          {out.latency_ms != null && <span className="text-ink-dim">{out.latency_ms} ms</span>}
+          {out.detail && <span className="text-ink-faint">{out.detail}</span>}
+        </div>
+      )}
+      <details className="text-2xs text-ink-faint">
+        <summary className="cursor-pointer select-none">Raw JSON</summary>
+        <CodeBlock code={JSON.stringify(out, null, 2)} className="max-h-72 mt-1" wrap />
+      </details>
     </div>
   );
 }

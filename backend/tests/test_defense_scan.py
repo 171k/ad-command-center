@@ -77,3 +77,15 @@ def test_scan_status_404(auth):
     client, headers = auth
     r = client.get("/api/defense/scan/999999", headers=headers)
     assert r.status_code == 404
+
+
+def test_scan_delete(auth):
+    client, headers = auth
+    data = _zip({"service/app.py": VULN_PY})
+    r = client.post("/api/defense/scan", files={"file": ("s.zip", data, "application/zip")}, headers=headers)
+    job_id = r.json()["job_id"]
+    _wait_done(client, headers, job_id)
+    d = client.delete(f"/api/defense/scan/{job_id}", headers=headers)
+    assert d.status_code == 204
+    assert client.get(f"/api/defense/scan/{job_id}", headers=headers).status_code == 404
+    assert client.delete("/api/defense/scan/999999", headers=headers).status_code == 404
