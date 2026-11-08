@@ -242,6 +242,10 @@ def scan_project(job_id: int, zip_path: str) -> None:
                 sgs.sort(key=lambda f: (-engine.CONF_ORDER.get(f["confidence"], 0), f["line"]))
                 per_file[rel] = sgs
 
+        for findings in per_file.values():
+            for f in findings:
+                engine._add_display_fields(f)
+
         file_entries = []
         totals = {"strong": 0, "potential": 0, "needs_context": 0}
         for rel, findings in per_file.items():

@@ -1,5 +1,21 @@
 """CWE enrichment: the table that gives every finding an exploit, payload and patch."""
-from app.analyzer.enrich import cwe_number, enrich_for_cwe
+from app.analyzer.enrich import cwe_fix_url, cwe_name, cwe_number, enrich_for_cwe, find_cves
+
+
+def test_cwe_name_and_fix_url():
+    assert cwe_name("CWE-22: Improper Limitation of a Pathname") == "Path Traversal"
+    assert cwe_name("CWE-89") == "SQL Injection"
+    assert cwe_name("CWE-999999") is None
+    assert cwe_fix_url("CWE-22") == "https://cwe.mitre.org/data/definitions/22.html"
+    assert cwe_fix_url("not a cwe") is None
+
+
+def test_find_cves():
+    cves = find_cves("affected by CVE-2021-44228 and cve-2014-0160")
+    ids = {c["id"] for c in cves}
+    assert "CVE-2021-44228" in ids and "CVE-2014-0160" in ids
+    assert all(c["url"].startswith("https://nvd.nist.gov/vuln/detail/") for c in cves)
+    assert find_cves("no cves here") == []
 
 
 def test_cwe_number_parse():

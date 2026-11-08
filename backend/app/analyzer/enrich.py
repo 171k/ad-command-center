@@ -112,7 +112,52 @@ CWE_ENRICH: dict[str, dict[str, str]] = {
 # Map common aliases to a canonical entry above.
 _ALIAS = {"77": "78", "89": "89", "96": "94", "915": "502", "1333": "20"}
 
+# Plain-English name per CWE, so a finding says "Path Traversal" not just "CWE-22".
+CWE_NAMES: dict[str, str] = {
+    "20": "Improper Input Validation", "22": "Path Traversal",
+    "73": "External Control of File Path", "77": "Command Injection",
+    "78": "OS Command Injection", "79": "Cross-Site Scripting (XSS)",
+    "89": "SQL Injection", "90": "LDAP Injection", "94": "Code Injection",
+    "95": "Code Injection (eval)", "96": "Server-Side Template Injection (SSTI)",
+    "200": "Information Exposure", "287": "Improper Authentication",
+    "295": "Improper Certificate Validation", "312": "Cleartext Storage of Sensitive Data",
+    "319": "Cleartext Transmission", "326": "Inadequate Encryption Strength",
+    "327": "Use of a Broken/Weak Crypto Algorithm", "328": "Use of a Weak Hash",
+    "338": "Weak Randomness (predictable)", "347": "Improper Verification of Signature",
+    "352": "Cross-Site Request Forgery (CSRF)", "400": "Uncontrolled Resource Consumption (DoS)",
+    "434": "Unrestricted File Upload", "476": "NULL Pointer Dereference",
+    "502": "Insecure Deserialization", "522": "Insufficiently Protected Credentials",
+    "601": "Open Redirect", "611": "XML External Entity (XXE)", "643": "XPath Injection",
+    "697": "Incorrect Comparison (type juggling)", "798": "Hardcoded Credentials",
+    "862": "Missing Authorization", "863": "Incorrect Authorization",
+    "918": "Server-Side Request Forgery (SSRF)", "1004": "Sensitive Cookie without HttpOnly",
+    "1321": "Prototype Pollution", "1333": "Inefficient Regex (ReDoS)",
+    "1336": "Server-Side Template Injection (SSTI)",
+}
+
 _CWE_NUM = re.compile(r"CWE[-_ ]?(\d+)", re.I)
+_CVE_RE = re.compile(r"CVE-\d{4}-\d{3,7}", re.I)
+
+
+def cwe_name(cwe: str | None) -> str | None:
+    num = cwe_number(cwe)
+    return CWE_NAMES.get(_ALIAS.get(num, num)) if num else None
+
+
+def cwe_fix_url(cwe: str | None) -> str | None:
+    """A reliable 'how to fix / learn more' link: the CWE page has mitigations."""
+    num = cwe_number(cwe)
+    return f"https://cwe.mitre.org/data/definitions/{num}.html" if num else None
+
+
+def find_cves(*texts: str) -> list[dict]:
+    """Extract CVE ids from text and link each to its NVD detail page."""
+    seen: dict[str, dict] = {}
+    for t in texts:
+        for m in _CVE_RE.findall(t or ""):
+            cid = m.upper()
+            seen.setdefault(cid, {"id": cid, "url": f"https://nvd.nist.gov/vuln/detail/{cid}"})
+    return list(seen.values())
 
 
 def cwe_number(cwe: str | None) -> str | None:

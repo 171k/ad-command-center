@@ -23,7 +23,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .enrich import cwe_number, enrich_for_cwe
+from .enrich import cwe_fix_url, cwe_name, cwe_number, enrich_for_cwe, find_cves
 from .rules import LANG_ALIASES, TAINT_SOURCES, Rule, rules_for_language
 
 WINDOW = 3  # lines above/below a sink to look for a taint source
@@ -127,6 +127,13 @@ def _match_rule(rule: Rule, code: str, code_lines: list[str], sources: list[re.P
     return findings
 
 
+def _add_display_fields(f: dict) -> None:
+    """Human vuln name + a 'how to fix' link (CWE page) + any CVE links."""
+    f["vuln_name"] = cwe_name(f.get("cwe")) or f.get("name")
+    f["fix_url"] = cwe_fix_url(f.get("cwe"))
+    f["cves"] = find_cves(f.get("name", ""), f.get("description", ""), *(f.get("references") or []))
+
+
 def analyze(code: str, language: str | None = None, use_semgrep: bool = True) -> dict:
     code = code.replace("\r\n", "\n")
     detected = detect_language(code) if not language else LANG_ALIASES.get(language.lower(), language.lower())
@@ -153,6 +160,8 @@ def analyze(code: str, language: str | None = None, use_semgrep: bool = True) ->
         semgrep_note = "Semgrep not installed; used built-in rules only."
 
     findings.sort(key=lambda f: (-CONF_ORDER.get(f["confidence"], 0), f["line"]))
+    for f in findings:
+        _add_display_fields(f)
 
     categories = {c: 0 for c in CONF_LABEL}
     for f in findings:

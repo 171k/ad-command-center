@@ -202,7 +202,7 @@ function Finding({ f, file }: { f: any; file?: string }) {
     <Panel>
       <button className="w-full flex items-center gap-2 px-3 h-11 text-left" onClick={() => setOpen(!open)}>
         {open ? <ChevronDown className="h-4 w-4 text-ink-faint" /> : <ChevronRight className="h-4 w-4 text-ink-faint" />}
-        <span className="text-sm font-medium">{f.name}</span>
+        <span className="text-sm font-medium">{f.vuln_name || f.name}</span>
         <Badge className={`${meta.cls} ml-1`}>{meta.label}</Badge>
         <span className="ml-auto flex items-center gap-2 text-2xs text-ink-faint">
           {f.engine && <Badge className="border-line-strong text-ink-faint uppercase">{f.engine}</Badge>}
@@ -232,11 +232,15 @@ function Finding({ f, file }: { f: any; file?: string }) {
           {snippetText && <button className="btn btn-sm" disabled={saveAsPatch.isPending} onClick={() => saveAsPatch.mutate()}><GitCompare className="h-3.5 w-3.5" />Save as patch</button>}
           {f.regression_test && <Labeled label="Regression test"><CodeBlock code={f.regression_test} className="max-h-40" /></Labeled>}
           {f.limitations && <Info label="Limitations of this analysis" text={f.limitations} />}
-          {f.references?.length > 0 && (
-            <div className="text-2xs text-ink-faint">
-              References: {f.references.map((r: string, i: number) => (
-                <a key={i} href={r} target="_blank" rel="noreferrer" className="text-accent hover:underline mr-2">{new URL(r).hostname}</a>
+          {(f.fix_url || f.cves?.length > 0 || f.references?.length > 0) && (
+            <div className="text-2xs text-ink-faint flex flex-wrap items-center gap-x-3 gap-y-1">
+              {f.fix_url && <a href={f.fix_url} target="_blank" rel="noreferrer" className="text-accent hover:underline font-semibold">How to fix ({f.cwe || "CWE"})</a>}
+              {(f.cves || []).map((c: any) => (
+                <a key={c.id} href={c.url} target="_blank" rel="noreferrer" className="text-bad hover:underline mono">{c.id}</a>
               ))}
+              {f.references?.length > 0 && <span>Refs: {f.references.map((r: string, i: number) => (
+                <a key={i} href={r} target="_blank" rel="noreferrer" className="text-accent hover:underline mr-2">{safeHost(r)}</a>
+              ))}</span>}
             </div>
           )}
         </div>
@@ -262,6 +266,8 @@ function SmartBlock({ text }: { text: string }) {
     </p>
   );
 }
+
+function safeHost(u: string): string { try { return new URL(u).hostname; } catch { return u; } }
 
 function Info({ label, text, mono }: { label: string; text: string; mono?: boolean }) {
   return (
