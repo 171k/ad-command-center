@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight } from "lucide-react";
-import { get, post } from "../lib/api";
+import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload } from "lucide-react";
+import { get, post, upload } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { HowToUse } from "../components/HowToUse";
@@ -9,7 +9,7 @@ import { CodeEditor } from "../components/CodeEditor";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { CONFIDENCE_META } from "../lib/format";
 
-const LANGS = ["auto", "python", "php", "javascript", "java", "c", "cpp", "shell"];
+const LANGS = ["auto", "python", "php", "javascript", "typescript", "java", "go", "ruby", "c", "cpp", "shell"];
 
 const SAMPLE = `# Paste code to analyze. Example (Flask):
 import subprocess
@@ -23,7 +23,7 @@ export function Defense() {
   const [tab, setTab] = useState("analyze");
   return (
     <>
-      <PageHeader title="Defense" subtitle="Deterministic code analysis · patches · regression tests (no AI)" />
+      <PageHeader title="Defense" subtitle="Code review: paste or upload · built-in rules + Semgrep · exploit, payload, patch (no AI)" />
       <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line flex items-end justify-between gap-3">
         <Tabs
           active={tab}
@@ -50,12 +50,32 @@ function Analyze() {
   const [code, setCode] = useState(SAMPLE);
   const [lang, setLang] = useState("auto");
   const [result, setResult] = useState<any>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const run = useMutation({
     mutationFn: () => post("/defense/analyze", { code, language: lang === "auto" ? null : lang, use_semgrep: true }),
     onSuccess: (r) => setResult(r),
     onError: (e: any) => toast("error", e.message),
   });
+
+  const uploadM = useMutation({
+    mutationFn: async (file: File) => {
+      const text = await file.text();
+      setCode(text);
+      const q = lang === "auto" ? "" : `&language=${lang}`;
+      const fd = new FormData();
+      fd.append("file", file);
+      return upload(`/defense/analyze-file?use_semgrep=true${q}`, fd);
+    },
+    onSuccess: (r) => setResult(r),
+    onError: (e: any) => toast("error", e.message),
+  });
+
+  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) uploadM.mutate(f);
+    e.target.value = ""; // allow re-selecting the same file
+  }
 
   const save = useMutation({
     mutationFn: () => post("/defense/save", { title: `Analysis (${result.language})`, language: result.language, code, result }),
@@ -70,8 +90,14 @@ function Analyze() {
           <select className="input w-40" value={lang} onChange={(e) => setLang(e.target.value)}>
             {LANGS.map((l) => <option key={l} value={l}>{l === "auto" ? "Auto-detect" : l}</option>)}
           </select>
-          <button className="btn btn-primary" disabled={run.isPending || !code.trim()} onClick={() => run.mutate()}>
+          <button className="btn btn-primary" disabled={run.isPending || uploadM.isPending || !code.trim()} onClick={() => run.mutate()}>
             {run.isPending ? <Spinner className="text-white" /> : <Play className="h-4 w-4" />} Analyze
+          </button>
+          <input ref={fileRef} type="file" className="hidden"
+            accept=".py,.js,.jsx,.mjs,.ts,.tsx,.php,.java,.go,.c,.h,.cc,.cpp,.hpp,.rb,.sh,.bash,.txt,text/*"
+            onChange={onPickFile} />
+          <button className="btn" disabled={uploadM.isPending} onClick={() => fileRef.current?.click()} title="Upload a source file to analyze">
+            {uploadM.isPending ? <Spinner /> : <Upload className="h-4 w-4" />} Upload file
           </button>
           {result && (
             <button className="btn" onClick={() => save.mutate()} disabled={save.isPending}>
@@ -88,7 +114,7 @@ function Analyze() {
       <div className="min-h-0 overflow-auto">
         {!result ? (
           <Panel className="h-full"><EmptyState icon={<Shield2 />} title="No analysis yet"
-            hint="Paste code and run Analyze. Findings show matched lines, why the pattern is dangerous, a patch and a regression test. 'No match' never means the code is proven safe." /></Panel>
+            hint="Paste code or upload a file, then run Analyze. Each finding shows the line, the possible exploit, an example payload and how to patch it. Built-in curated rules run alongside Semgrep. 'No match' never means the code is proven safe." /></Panel>
         ) : (
           <Results result={result} />
         )}
@@ -106,6 +132,7 @@ function Results({ result }: { result: any }) {
     <div className="space-y-3">
       <Panel bodyClass="p-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          {result.filename && <Badge className="border-accent/40 text-accent bg-accent/10">{result.filename}</Badge>}
           <Badge className="border-line-strong text-ink-dim">lang: {result.language}</Badge>
           <Badge className="border-line-strong text-ink-dim">engine: {result.engine}</Badge>
           <span className="text-ink-faint">{result.finding_count} finding(s)</span>
@@ -134,7 +161,8 @@ function Finding({ f }: { f: any }) {
         <span className="text-sm font-medium">{f.name}</span>
         <Badge className={`${meta.cls} ml-1`}>{meta.label}</Badge>
         <span className="ml-auto flex items-center gap-2 text-2xs text-ink-faint">
-          <span className="mono">{f.cwe}</span>
+          {f.engine && <Badge className="border-line-strong text-ink-faint uppercase">{f.engine}</Badge>}
+          {f.cwe && <span className="mono">{f.cwe}</span>}
           <span>line {f.line}</span>
         </span>
       </button>
@@ -147,14 +175,14 @@ function Finding({ f }: { f: any }) {
             />
           )}
           <Info label="What it is" text={f.description} />
-          <Info label="Why it's dangerous" text={f.why_dangerous} />
+          {f.why_dangerous && <Info label="Possible exploit" text={f.why_dangerous} />}
           {f.preconditions && <Info label="Preconditions" text={f.preconditions} />}
           {f.taint_evidence && <Info label="Input source detected" text={f.taint_evidence} mono />}
           {f.test_procedure && <Info label="Safe test (authorized only)" text={f.test_procedure} />}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {f.exploit_template && <Labeled label="Verification template"><CodeBlock code={f.exploit_template} className="max-h-40" /></Labeled>}
-            {f.remediation && <Labeled label="Suggested patch"><CodeBlock code={f.remediation} className="max-h-40" /></Labeled>}
+            {f.exploit_template && <Labeled label="Example payload"><CodeBlock code={f.exploit_template} className="max-h-40" /></Labeled>}
+            {f.remediation && <Labeled label="How to patch"><CodeBlock code={f.remediation} className="max-h-40" /></Labeled>}
           </div>
           {f.why_patch_works && <Info label="Why the patch works" text={f.why_patch_works} />}
           {f.regression_test && <Labeled label="Regression test"><CodeBlock code={f.regression_test} className="max-h-40" /></Labeled>}

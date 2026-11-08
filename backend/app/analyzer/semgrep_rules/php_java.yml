@@ -1,0 +1,102 @@
+# Offline Semgrep rules for PHP and Java.
+rules:
+  # ---- PHP ----
+  - id: adcc-php-system-exec
+    languages: [php]
+    severity: ERROR
+    message: "system/exec/shell_exec/passthru run a shell string, enabling command injection."
+    metadata:
+      cwe: ["CWE-78"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/78.html"]
+    patterns:
+      - pattern-either:
+          - pattern: system(...)
+          - pattern: exec(...)
+          - pattern: shell_exec(...)
+          - pattern: passthru(...)
+          - pattern: popen(...)
+
+  - id: adcc-php-eval
+    languages: [php]
+    severity: ERROR
+    message: "eval() executes a string as PHP code."
+    metadata:
+      cwe: ["CWE-95"]
+      references: ["https://cwe.mitre.org/data/definitions/95.html"]
+    patterns:
+      - pattern: eval(...)
+
+  - id: adcc-php-unserialize
+    languages: [php]
+    severity: ERROR
+    message: "unserialize() on untrusted data can instantiate objects and run code (object injection)."
+    metadata:
+      cwe: ["CWE-502"]
+      references: ["https://cwe.mitre.org/data/definitions/502.html"]
+    patterns:
+      - pattern: unserialize(...)
+
+  - id: adcc-php-sqli-concat
+    languages: [php]
+    severity: ERROR
+    message: "Request data concatenated into a SQL query string (SQL injection)."
+    metadata:
+      cwe: ["CWE-89"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/89.html"]
+    patterns:
+      - pattern-either:
+          - pattern: mysqli_query($C, "...". $_GET[...] ."...")
+          - pattern: mysqli_query($C, "...". $_POST[...] ."...")
+          - pattern: $DB->query("...". $_GET[...] ."...")
+          - pattern: $DB->query("...". $_POST[...] ."...")
+
+  # ---- Java ----
+  - id: adcc-java-runtime-exec
+    languages: [java]
+    severity: ERROR
+    message: "Runtime.exec / ProcessBuilder with a dynamic string enables command injection."
+    metadata:
+      cwe: ["CWE-78"]
+      references: ["https://cwe.mitre.org/data/definitions/78.html"]
+    patterns:
+      - pattern-either:
+          - pattern: Runtime.getRuntime().exec(...)
+          - pattern: new ProcessBuilder(...)
+
+  - id: adcc-java-sql-concat
+    languages: [java]
+    severity: ERROR
+    message: "SQL built by concatenation and run via Statement (SQL injection)."
+    metadata:
+      cwe: ["CWE-89"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/89.html"]
+    patterns:
+      - pattern-either:
+          - pattern: $ST.executeQuery("..." + $X + "...")
+          - pattern: $ST.executeQuery("..." + $X)
+          - pattern: $ST.execute("..." + $X)
+
+  - id: adcc-java-weak-hash
+    languages: [java]
+    severity: WARNING
+    message: "MessageDigest with MD5/SHA-1 is weak."
+    metadata:
+      cwe: ["CWE-328"]
+      references: ["https://cwe.mitre.org/data/definitions/328.html"]
+    patterns:
+      - pattern-either:
+          - pattern: MessageDigest.getInstance("MD5")
+          - pattern: MessageDigest.getInstance("SHA-1")
+
+  - id: adcc-java-xxe
+    languages: [java]
+    severity: ERROR
+    message: "XML parser created without disabling external entities (XXE)."
+    metadata:
+      cwe: ["CWE-611"]
+      references: ["https://cwe.mitre.org/data/definitions/611.html"]
+    patterns:
+      - pattern: DocumentBuilderFactory.newInstance()

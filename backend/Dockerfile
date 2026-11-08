@@ -1,9 +1,13 @@
-# Backend image: FastAPI + uvicorn, non-root, with tshark for PCAP parsing.
+# Backend image: FastAPI + uvicorn, non-root, with tshark for PCAP parsing and
+# Semgrep (installed via requirements.txt) for the Defense code-review engine.
 FROM python:3.12-slim AS base
 
 # tshark enables the PCAP ingestion feature; set INSTALL_TSHARK=false to slim the image.
 ARG INSTALL_TSHARK=true
-ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+# Semgrep runs fully offline against the bundled local ruleset: no version check,
+# no metrics upload. The CLI flags set the same, these are belt-and-suspenders.
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
+    SEMGREP_ENABLE_VERSION_CHECK=0 SEMGREP_SEND_METRICS=off
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       curl ca-certificates \

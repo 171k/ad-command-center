@@ -57,10 +57,10 @@ export const HELP: Record<string, HelpDoc> = {
         heading: "Analyze: scan your code",
         ordered: true,
         steps: [
-          "Paste your service's source code into the editor.",
+          "Paste source into the editor, or click Upload file to load one.",
           "Pick the language or leave it on Auto.",
-          "Click Analyze.",
-          "Review each finding: its confidence, a suggested patch and a regression test.",
+          "Click Analyze. Two engines run together: the built-in curated rules and Semgrep.",
+          "Each finding shows the line, the possible exploit, an example payload and how to patch it.",
         ],
       },
       {

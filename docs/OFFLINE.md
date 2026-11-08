@@ -12,6 +12,7 @@ competition (Windows 11 + WSL2/Docker or any Linux with Docker).
 | Attack, Defense, Automation, Network/SOC, Pwn Solver | ✅ (no external calls at runtime) |
 | Tool Repository + `adtools` install | ✅ from the hosted artifacts / offline bundle |
 | Deterministic analysis (code rules, checksec, cyclic/pack, utilities) | ✅ |
+| Defense code review: built-in rules + Semgrep (bundled offline ruleset) | ✅ no registry |
 | Live cross-session sync (SSE) | ✅ (local) |
 | Recon / service health | ✅ against hosts reachable on your LAN |
 | HTTPS with a public cert | ❌ needs internet for ACME, use plain HTTP locally |

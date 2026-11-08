@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]: Defense code review with Semgrep
+
+- **Defense code review upgraded.** The Analyze tab now runs two deterministic
+  engines together: the built-in curated rules and **Semgrep** (multi-language,
+  bundled offline ruleset, no registry, no AI). Findings are merged and deduped.
+- **File upload.** Analyze a pasted snippet or upload a source file
+  (`/api/defense/analyze-file`); binary and empty files are rejected.
+- **Exploit / payload / patch for every finding.** A CWE enrichment table
+  (`analyzer/enrich.py`) gives each finding, including Semgrep's, the four
+  answers: the vulnerable line, the possible exploit, an example payload and how
+  to patch it.
+- Backend image now installs Semgrep; it runs fully offline against
+  `analyzer/semgrep_rules/`. No new runtime network dependency.
+
 ## [vNext]: Competition Readiness (branch: feat/vnext-competition), unreleased
 
 Dedicated dev branch for iHack 2026. **Not deployed to production.** HTTPS, auth,
