@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, FileSearch } from "lucide-react";
-import { get, post, put } from "../lib/api";
+import { Plus, FileSearch, Trash2 } from "lucide-react";
+import { get, post, put, del } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { HowToUse } from "../components/HowToUse";
@@ -29,6 +29,11 @@ export function Findings() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["findings"] }); setCreate(false); setForm(NEW); toast("ok", "Finding created"); },
     onError: (e: any) => toast("error", e.message),
   });
+  const deleteM = useMutation({
+    mutationFn: (id: number) => del(`/findings/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["findings"] }); toast("ok", "Finding deleted"); },
+    onError: (e: any) => toast("error", e.message),
+  });
   const items = data?.items || [];
   return (
     <>
@@ -45,7 +50,7 @@ export function Findings() {
         <Panel>
           {items.length === 0 ? <EmptyState icon={<FileSearch className="h-7 w-7" />} title="No findings" hint="Create a finding or send one from an SOC offense." /> : (
             <table className="w-full row-hover">
-              <thead><tr><th className="th">Title</th><th className="th">Source</th><th className="th">Severity</th><th className="th">Status</th><th className="th">By</th><th className="th">Updated</th></tr></thead>
+              <thead><tr><th className="th">Title</th><th className="th">Source</th><th className="th">Severity</th><th className="th">Status</th><th className="th">By</th><th className="th">Updated</th><th className="th"></th></tr></thead>
               <tbody>{items.map((f: any) => (
                 <tr key={f.id} className="cursor-pointer" onClick={() => setSel(f.id)}>
                   <td className="td font-medium">{f.title}</td>
@@ -54,6 +59,8 @@ export function Findings() {
                   <td className="td text-ink-dim">{f.status}</td>
                   <td className="td text-ink-faint">{f.label ?? "-"}</td>
                   <td className="td text-ink-faint">{timeAgo(f.updated_at)}</td>
+                  <td className="td text-right"><button className="btn btn-ghost btn-sm text-bad" title="Delete finding"
+                    onClick={(e) => { e.stopPropagation(); if (confirm(`Delete finding "${f.title}"?`)) deleteM.mutate(f.id); }}><Trash2 className="h-3.5 w-3.5" /></button></td>
                 </tr>
               ))}</tbody>
             </table>
@@ -88,6 +95,7 @@ function FindingDetail({ id, onClose }: { id: number; onClose: () => void }) {
   const [note, setNote] = useState("");
   const noteM = useMutation({ mutationFn: () => post(`/findings/${id}/notes`, { body: note }), onSuccess: () => { setNote(""); qc.invalidateQueries({ queryKey: ["finding", id] }); } });
   const statusM = useMutation({ mutationFn: (s: string) => put(`/findings/${id}`, { ...f, status: s }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["finding", id] }); qc.invalidateQueries({ queryKey: ["findings"] }); } });
+  const deleteM = useMutation({ mutationFn: () => del(`/findings/${id}`), onSuccess: () => { qc.invalidateQueries({ queryKey: ["findings"] }); onClose(); } });
   return (
     <Drawer open onClose={onClose} title={f?.title || "Finding"} width="max-w-xl">
       {!f ? null : (
@@ -97,6 +105,7 @@ function FindingDetail({ id, onClose }: { id: number; onClose: () => void }) {
             {["open", "investigating", "resolved"].map((s) => (
               <button key={s} className={`btn btn-sm ${f.status === s ? "btn-primary" : ""}`} onClick={() => statusM.mutate(s)}>{s}</button>
             ))}
+            <button className="btn btn-sm text-bad ml-auto" title="Delete finding" onClick={() => { if (confirm("Delete this finding?")) deleteM.mutate(); }}><Trash2 className="h-3.5 w-3.5" />Delete</button>
           </div>
           {f.description && <p className="text-sm text-ink-dim whitespace-pre-wrap">{f.description}</p>}
           {f.refs?.offense_id && <div className="text-xs text-ink-faint">Linked SOC offense #{f.refs.offense_id}</div>}
