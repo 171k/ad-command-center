@@ -4,8 +4,10 @@
 
 - **Much broader vulnerability detection.** The Defense project (zip) scan now
   runs the built-in rules PLUS the full official **Semgrep community ruleset**
-  (hundreds of rules across Python, JS/TS, Java, Go, PHP, Ruby, C, generic),
+  (~1,900 rules across EVERY supported language, not just the common web ones),
   vendored into the image (pinned commit) so it stays fully offline.
+- Added CTF/attack-defense custom rules (`ctf.yml`): PHP LFI, type-juggling auth,
+  `preg_replace /e`, JWT verification disabled, hardcoded-backdoor comparisons.
 - Overlapping findings are deduped by line + CWE; CWE still drives the
   exploit/payload/patch enrichment. If a community rule misbehaves, the scan
   falls back to the built-in rules so it never comes back empty.

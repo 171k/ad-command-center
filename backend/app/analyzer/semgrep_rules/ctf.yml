@@ -1,0 +1,65 @@
+# CTF / attack-defense flavored rules: patterns that organizers often plant on
+# purpose (backdoors, weak auth, LFI) and that are worth calling out loudly.
+rules:
+  - id: adcc-php-lfi-include
+    languages: [php]
+    severity: ERROR
+    message: "User input flows into include/require (local/remote file inclusion)."
+    metadata:
+      cwe: ["CWE-98"]
+      owasp: ["A03:2021 Injection"]
+      references: ["https://cwe.mitre.org/data/definitions/98.html"]
+    patterns:
+      - pattern-either:
+          - pattern: include($_GET[...]);
+          - pattern: include($_POST[...]);
+          - pattern: include($_REQUEST[...]);
+          - pattern: require($_GET[...]);
+          - pattern: include_once($_GET[...]);
+          - pattern: require_once($_GET[...]);
+
+  - id: adcc-php-type-juggling-auth
+    languages: [php]
+    severity: WARNING
+    message: "Loose comparison (==) on request data can be bypassed by PHP type juggling."
+    metadata:
+      cwe: ["CWE-697"]
+      references: ["https://owasp.org/www-pdf-archive/PHPMagicTricks-TypeJuggling.pdf"]
+    patterns:
+      - pattern-either:
+          - pattern: if ($_GET[...] == $X) { ... }
+          - pattern: if ($_POST[...] == $X) { ... }
+          - pattern: if (strcmp($_GET[...], ...) == 0) { ... }
+          - pattern: if (strcmp($_POST[...], ...) == 0) { ... }
+
+  - id: adcc-php-dangerous-preg-replace
+    languages: [php]
+    severity: ERROR
+    message: "preg_replace with the /e modifier executes the replacement as PHP code."
+    metadata:
+      cwe: ["CWE-95"]
+      references: ["https://www.php.net/manual/en/function.preg-replace.php"]
+    patterns:
+      - pattern-regex: 'preg_replace\s*\([^;]*/e["\x27]'
+
+  - id: adcc-py-jwt-verify-disabled
+    languages: [python]
+    severity: ERROR
+    message: "JWT decoded with verification disabled; forged tokens are accepted."
+    metadata:
+      cwe: ["CWE-347"]
+      references: ["https://cwe.mitre.org/data/definitions/347.html"]
+    patterns:
+      - pattern-either:
+          - pattern: jwt.decode(..., verify=False, ...)
+          - pattern: 'jwt.decode(..., options={..., "verify_signature": False, ...}, ...)'
+
+  - id: adcc-generic-hardcoded-backdoor-compare
+    languages: [python, javascript, typescript, php]
+    severity: WARNING
+    message: "Comparison against a hardcoded secret/token; possible backdoor or magic value."
+    metadata:
+      cwe: ["CWE-798"]
+      references: ["https://cwe.mitre.org/data/definitions/798.html"]
+    patterns:
+      - pattern-regex: '(?i)(password|passwd|secret|token|backdoor|magic|admin_?key)\s*===?\s*["\x27][^"\x27]{6,}["\x27]'

@@ -30,15 +30,18 @@ RUN python -m venv /opt/semgrep-venv \
     && semgrep --version
 
 # Vendor the official Semgrep community ruleset (pinned) for the Defense project
-# scan, so a whole uploaded service is checked against hundreds of rules fully
-# offline (no registry at runtime). Semgrep Rules License v1.0 (see LICENSE in the
-# dir); bundled for internal scanning only, not redistributed. Keep only the
-# languages we care about to control size and noise.
+# scan, so a whole uploaded service is checked against ~1,900 rules fully offline
+# (no registry at runtime). Semgrep Rules License v1.0 (see LICENSE in the dir);
+# bundled for internal scanning only, not redistributed. We copy EVERY language
+# directory (not the meta dirs, which contain non-rule yaml that breaks config
+# loading) so any stack a challenge uses is covered.
 ARG SEMGREP_RULES_COMMIT=16b9e6d45f10649f6a531ec4838ed9924372c3bc
 RUN curl -fsSL "https://github.com/semgrep/semgrep-rules/archive/${SEMGREP_RULES_COMMIT}.tar.gz" -o /tmp/sr.tgz \
     && tar xzf /tmp/sr.tgz -C /tmp \
     && mkdir -p /opt/semgrep-rules \
-    && for d in python javascript typescript java go php ruby c generic html bash; do \
+    && for d in python javascript typescript java go php ruby c generic html bash \
+                csharp kotlin scala rust swift solidity elixir clojure ocaml \
+                dockerfile terraform json yaml apex; do \
          cp -r "/tmp/semgrep-rules-${SEMGREP_RULES_COMMIT}/$d" /opt/semgrep-rules/ 2>/dev/null || true; \
        done \
     && cp "/tmp/semgrep-rules-${SEMGREP_RULES_COMMIT}/LICENSE" /opt/semgrep-rules/ \
