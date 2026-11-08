@@ -32,6 +32,7 @@ _TABLES = [
     "script_revisions", "scripts", "analyses", "finding_notes", "findings",
     "service_health", "services", "flags", "login_attempts", "audit_log",
     "tool_artifacts", "tools", "pwn_scripts", "pwn_cases", "scan_jobs",
+    "patch_events", "patches",
     "app_config", "sessions", "users",
 ]
 

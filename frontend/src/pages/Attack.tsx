@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Crosshair, Plus, Radio, Flag, BookOpen, Trash2, Activity, ChevronDown, ChevronRight } from "lucide-react";
+import { Crosshair, Plus, Radio, Flag, BookOpen, Trash2, Activity, ChevronDown, ChevronRight, Code2, Download } from "lucide-react";
 import { del, get, post, put } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
@@ -18,6 +18,7 @@ export function Attack() {
           { id: "targets", label: <Tl icon={Crosshair}>Targets</Tl> },
           { id: "recon", label: <Tl icon={Radio}>Recon</Tl> },
           { id: "knowledge", label: <Tl icon={BookOpen}>Knowledge</Tl> },
+          { id: "rce", label: <Tl icon={Code2}>RCE Gen</Tl> },
           { id: "flags", label: <Tl icon={Flag}>Flags</Tl> },
         ]} />
         <HowToUse page="attack" className="mb-1.5" />
@@ -26,6 +27,7 @@ export function Attack() {
         {tab === "targets" && <Targets />}
         {tab === "recon" && <Recon />}
         {tab === "knowledge" && <Knowledge />}
+        {tab === "rce" && <RceGen />}
         {tab === "flags" && <Flags />}
       </PageBody>
     </>
@@ -311,6 +313,74 @@ function Flags() {
                 <td className="td">{f.service_id ?? "-"}</td><td className="td">{f.label ?? "-"}</td><td className="td text-ink-faint">{f.created_at}</td></tr>
             ))}</tbody>
           </table>}
+      </Panel>
+    </div>
+  );
+}
+
+const PROTOCOLS = ["requests", "http", "tcp", "pwntools"];
+
+function RceGen() {
+  const toast = useToast();
+  const { data } = useQuery({ queryKey: ["services"], queryFn: () => get("/services") });
+  const targets = (data?.items || []).filter((s: any) => s.authorized && s.port);
+  const [f, setF] = useState<any>({ protocol: "requests", host: "", port: 443, tls: true, method: "GET", path: "/", params: "", headers: "", body: "", payload: "", expected: "", timeout: 10, name: "exploit" });
+  const [result, setResult] = useState<any>(null);
+
+  function pickTarget(id: string) {
+    const t = targets.find((x: any) => String(x.id) === id);
+    if (t) setF({ ...f, host: t.host, port: t.port, tls: t.protocol === "https" });
+  }
+  function kvLines(s: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    (s || "").split("\n").forEach((ln) => { const i = ln.indexOf(":"); if (i > 0) out[ln.slice(0, i).trim()] = ln.slice(i + 1).trim(); });
+    return out;
+  }
+
+  const gen = useMutation({
+    mutationFn: () => post("/ops/rce-template", {
+      ...f, port: Number(f.port) || null, timeout: Number(f.timeout) || 10,
+      headers: kvLines(f.headers), params: kvLines(f.params),
+    }),
+    onSuccess: (r) => setResult(r),
+    onError: (e: any) => toast("error", e.message),
+  });
+
+  function download() {
+    if (!result) return;
+    const blob = new Blob([result.script], { type: "text/x-python" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = result.filename; a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-4 max-w-6xl">
+      <Panel title="RCE script generator">
+        <div className="p-3 space-y-3">
+          <p className="text-2xs text-ink-faint">Turn a verified vulnerability into a reusable, editable script. Generation only, no execution. The target must be a registered, authorised service. Run the exported script from your own box.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <L label="Protocol"><select className="input" value={f.protocol} onChange={(e) => setF({ ...f, protocol: e.target.value })}>{PROTOCOLS.map((p) => <option key={p}>{p}</option>)}</select></L>
+            <L label="Authorised target"><select className="input" onChange={(e) => pickTarget(e.target.value)}><option value="">Select…</option>{targets.map((t: any) => <option key={t.id} value={t.id}>{t.name} — {t.host}:{t.port}</option>)}</select></L>
+            <L label="Host"><input className="input mono" value={f.host} onChange={(e) => setF({ ...f, host: e.target.value })} /></L>
+            <L label="Port"><input className="input mono" value={f.port} onChange={(e) => setF({ ...f, port: e.target.value })} /></L>
+            <L label="Method"><select className="input" value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}><option>GET</option><option>POST</option></select></L>
+            <L label="TLS"><label className="flex items-center gap-2 h-8 text-sm"><input type="checkbox" checked={f.tls} onChange={(e) => setF({ ...f, tls: e.target.checked })} /> https / wrap TLS</label></L>
+            <div className="col-span-2"><L label="Path"><input className="input mono" value={f.path} onChange={(e) => setF({ ...f, path: e.target.value })} /></L></div>
+            <div className="col-span-2"><L label="Query params (key: value per line)"><textarea className="input mono h-16" value={f.params} onChange={(e) => setF({ ...f, params: e.target.value })} placeholder={"page: {{PAYLOAD}}"} /></L></div>
+            <div className="col-span-2"><L label="Headers (key: value per line)"><textarea className="input mono h-16" value={f.headers} onChange={(e) => setF({ ...f, headers: e.target.value })} placeholder={"User-Agent: okhttp/4"} /></L></div>
+            {f.method === "POST" && <div className="col-span-2"><L label="Body (use {{PAYLOAD}})"><textarea className="input mono h-16" value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} /></L></div>}
+            <div className="col-span-2"><L label="Payload / test input"><input className="input mono" value={f.payload} onChange={(e) => setF({ ...f, payload: e.target.value })} placeholder="../../../../etc/passwd" /></L></div>
+            <L label="Expected marker"><input className="input mono" value={f.expected} onChange={(e) => setF({ ...f, expected: e.target.value })} placeholder="root:x:" /></L>
+            <L label="Timeout (s)"><input className="input mono" value={f.timeout} onChange={(e) => setF({ ...f, timeout: e.target.value })} /></L>
+          </div>
+          <button className="btn btn-primary" disabled={!f.host || gen.isPending} onClick={() => gen.mutate()}>{gen.isPending ? <Spinner className="text-white" /> : <Code2 className="h-4 w-4" />} Generate</button>
+        </div>
+      </Panel>
+      <Panel title={result ? `Script · ${result.filename}` : "Script"} actions={result && <button className="btn btn-sm" onClick={download}><Download className="h-3.5 w-3.5" />Export .py</button>}>
+        <div className="p-3">
+          {!result ? <EmptyState title="No script yet" hint="Configure the request and click Generate. The script is deterministic and editable." /> :
+            <CodeBlock code={result.script} className="max-h-[70vh]" wrap />}
+        </div>
       </Panel>
     </div>
   );

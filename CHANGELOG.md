@@ -1,5 +1,46 @@
 # Changelog
 
+## [Unreleased]: A&D operations upgrade (branch feat/ad-ops-upgrade, not deployed)
+
+Research-driven upgrade for iHack 2026 (see docs/RESEARCH-iHack2026.md). Deterministic,
+offline, no runtime AI. Nothing runs untrusted code on the server.
+
+### Added
+- **RCE Script Generator** (Attack -> RCE Gen): turns a verified vulnerability into a
+  reusable, editable Python script (requests / raw HTTP / TCP / pwntools), with export.
+  Generation only, never executed here. The target must be a **registered authorised
+  service** (enforced server-side; unauthorised hosts get 403).
+- **tcpdump capture wizard** (SOC -> Capture & IR): builds a bounded, rotated capture
+  command (and a rotate-and-upload variant) from interface/port/filter inputs.
+- **Operational guides** (searchable, copyable parameterized commands, warnings):
+  packet capture, Linux persistence reference, persistence investigation/removal,
+  Docker operations (pull/build/tag/push/save/load), and container recovery. In SOC
+  (Capture & IR) and Defense (Playbooks).
+- New `ops` module + `/api/ops/*` endpoints (`generators.py`, `guides.py`); tests in
+  `test_ops.py` (generated scripts parse, scope 403, tcpdump bounded + injection-safe).
+- **Defense Patch Diff & History** (Defense -> Patches): record a proposed patch for a
+  finding ("Save as patch" on any finding, or New patch), see a **side-by-side and unified
+  diff** with add/remove/modify highlighting, export the `.diff`, and drive a
+  **server-validated lifecycle** Suggested -> Reviewed -> Tested -> Applied -> Verified
+  (plus Rejected / Failed / Rolled Back). Security and functional validation are tracked
+  **separately**: "Verified" requires BOTH to pass (a passing security check never implies
+  the service still works). Records are shared and guarded by an **optimistic-lock version**
+  so concurrent teammates cannot silently overwrite each other; full timeline per patch.
+  Migration `0006_patches.sql` (patches + patch_events). Tests in `test_patches.py`
+  (diff engine, transition rules, verify gate, 409 lock, export).
+
+### Verified end-to-end (rehearsal against our isolated lab, labs/vuln_service.py)
+- Attack: RCE script generated + a controlled test disclosed the lab flag. SOC: the
+  service's app_proof telemetry was captured (evidence-based). Defense: analyzer caught the
+  SQLi, produced the diff, and the verify gate blocked verification until both checks passed.
+  Recovery: service restart + health + documented rollback pattern.
+
+### Deferred / needs more work (honest status)
+- Attack Jobs execution engine (bounded sequential runs of operator scripts) is scoped
+  but not built; execution would stay in the gated sandbox worker. Management/allowlist/
+  emergency-stop UI pending.
+- Optional pkappa2 sidecar is referenced in the guide, not integrated (no stable API).
+
 ## [Unreleased]: Semgrep community ruleset for project scans
 
 - **Much broader vulnerability detection.** The Defense project (zip) scan now

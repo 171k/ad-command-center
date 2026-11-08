@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  LayoutDashboard, ShieldAlert, ListFilter, RadioTower, BookOpen, Upload, Send, Trash2,
+  LayoutDashboard, ShieldAlert, ListFilter, RadioTower, BookOpen, Upload, Send, Trash2, Antenna,
 } from "lucide-react";
 import { get, post } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
 import { HowToUse } from "../components/HowToUse";
+import { GuideBrowser } from "../components/Guide";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { Drawer, Dialog } from "../components/overlay";
 import { OUTCOME_META, tech, timeAgo } from "../lib/format";
@@ -23,6 +24,7 @@ export function Soc() {
           { id: "offenses", label: <T i={ShieldAlert}>Offenses</T> },
           { id: "events", label: <T i={ListFilter}>Events</T> },
           { id: "sensors", label: <T i={RadioTower}>Sensors</T> },
+          { id: "capture", label: <T i={Antenna}>Capture & IR</T> },
           { id: "setup", label: <T i={BookOpen}>Setup</T> },
         ]} />
         <HowToUse page="soc" className="mb-1.5" />
@@ -32,6 +34,7 @@ export function Soc() {
         {tab === "offenses" && <Offenses />}
         {tab === "events" && <Events />}
         {tab === "sensors" && <Sensors />}
+        {tab === "capture" && <CaptureIR />}
         {tab === "setup" && <Setup />}
       </PageBody>
     </>
@@ -532,4 +535,55 @@ function demoPayload() {
   events.push({ timestamp: "2026-11-07T10:07:00", event_type: "http", src_ip: "10.20.0.7", dest_ip: dst, dest_port: port, proto: "TCP",
     http: { url: "/ping", http_method: "POST", status: 200 }, payload_printable: "host=127.0.0.1; id", response_body: "uid=0(root) gid=0(root)", app_proof: "shell exec recorded" });
   return { events };
+}
+
+function CaptureIR() {
+  const [f, setF] = useState<any>({ interface: "eth0", ports: "8080", protocol: "tcp", hosts: "", exclude_ssh: true, snaplen: 0, rotate_seconds: 30, keep_files: 60, out_prefix: "cap" });
+  const [out, setOut] = useState<any>(null);
+  const gen = useMutation({
+    mutationFn: () => post("/ops/tcpdump", {
+      ...f,
+      ports: (f.ports || "").split(/[,\s]+/).filter(Boolean).map((n: string) => Number(n)).filter((n: number) => n > 0),
+      hosts: (f.hosts || "").split(/[,\s]+/).filter(Boolean),
+      snaplen: Number(f.snaplen) || 0, rotate_seconds: Number(f.rotate_seconds) || 0, keep_files: Number(f.keep_files) || 0,
+    }),
+    onSuccess: (r) => setOut(r),
+  });
+  return (
+    <div className="space-y-4 max-w-5xl">
+      <Panel title="tcpdump capture wizard">
+        <div className="p-3 space-y-3">
+          <p className="text-2xs text-ink-faint">Build a bounded, rotated capture command. Run it on an authorised host/interface only. Rotation + a file cap keep disk bounded.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <LL label="Interface"><input className="input mono" value={f.interface} onChange={(e) => setF({ ...f, interface: e.target.value })} /></LL>
+            <LL label="Protocol"><select className="input" value={f.protocol} onChange={(e) => setF({ ...f, protocol: e.target.value })}><option value="">any</option><option>tcp</option><option>udp</option></select></LL>
+            <LL label="Ports (space/comma)"><input className="input mono" value={f.ports} onChange={(e) => setF({ ...f, ports: e.target.value })} placeholder="8080 80" /></LL>
+            <LL label="Hosts (optional)"><input className="input mono" value={f.hosts} onChange={(e) => setF({ ...f, hosts: e.target.value })} placeholder="10.0.0.5" /></LL>
+            <LL label="Rotate every (s)"><input className="input mono" value={f.rotate_seconds} onChange={(e) => setF({ ...f, rotate_seconds: e.target.value })} /></LL>
+            <LL label="Keep files"><input className="input mono" value={f.keep_files} onChange={(e) => setF({ ...f, keep_files: e.target.value })} /></LL>
+            <LL label="Snaplen (0=full)"><input className="input mono" value={f.snaplen} onChange={(e) => setF({ ...f, snaplen: e.target.value })} /></LL>
+            <LL label="Exclude SSH"><label className="flex items-center gap-2 h-8 text-sm"><input type="checkbox" checked={f.exclude_ssh} onChange={(e) => setF({ ...f, exclude_ssh: e.target.checked })} /> not port 22</label></LL>
+          </div>
+          <button className="btn btn-primary" onClick={() => gen.mutate()}>{gen.isPending ? <Spinner className="text-white" /> : null} Build command</button>
+          {out && (
+            <div className="space-y-2">
+              <CmdRow label="Capture command" cmd={out.command} />
+              {out.rotate_command && <CmdRow label="Rotate + upload (curls each finished pcap)" cmd={out.rotate_command} />}
+              <div className="text-2xs text-ink-faint space-y-0.5">{(out.notes || []).map((n: string, i: number) => <div key={i}>• {n}</div>)}</div>
+            </div>
+          )}
+        </div>
+      </Panel>
+      <GuideBrowser workspace="soc" />
+    </div>
+  );
+}
+const LL = ({ label, children }: any) => <div><label className="label">{label}</label>{children}</div>;
+function CmdRow({ label, cmd }: { label: string; cmd: string }) {
+  return (
+    <div>
+      <div className="text-2xs font-semibold uppercase tracking-wider text-ink-faint mb-1">{label}</div>
+      <div className="well rounded-md p-2 flex items-start gap-2"><code className="mono text-xs text-ink flex-1 whitespace-pre-wrap break-words">{cmd}</code><CopyButton text={cmd} /></div>
+    </div>
+  );
 }
