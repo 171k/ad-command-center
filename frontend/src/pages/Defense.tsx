@@ -4,6 +4,7 @@ import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight } from "luci
 import { get, post } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
+import { HowToUse } from "../components/HowToUse";
 import { CodeEditor } from "../components/CodeEditor";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { CONFIDENCE_META } from "../lib/format";
@@ -23,7 +24,7 @@ export function Defense() {
   return (
     <>
       <PageHeader title="Defense" subtitle="Deterministic code analysis · patches · regression tests (no AI)" />
-      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line">
+      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line flex items-end justify-between gap-3">
         <Tabs
           active={tab}
           onChange={setTab}
@@ -33,6 +34,7 @@ export function Defense() {
             { id: "saved", label: <span className="flex items-center gap-1.5"><FileCode2 className="h-3.5 w-3.5" />Saved</span> },
           ]}
         />
+        <HowToUse page="defense" className="mb-1.5" />
       </div>
       <PageBody className="p-0">
         {tab === "analyze" && <Analyze />}

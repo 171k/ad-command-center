@@ -6,6 +6,7 @@ import {
 import { get, post } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
+import { HowToUse } from "../components/HowToUse";
 import { Badge, CodeBlock, CopyButton, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { Drawer, Dialog } from "../components/overlay";
 import { OUTCOME_META, tech, timeAgo } from "../lib/format";
@@ -16,7 +17,7 @@ export function Soc() {
   return (
     <>
       <PageHeader title="Network / SOC" subtitle="Offense correlation · evidence-based outcomes · traffic" />
-      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line">
+      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line flex items-end justify-between gap-3">
         <Tabs active={tab} onChange={setTab} tabs={[
           { id: "dashboard", label: <T i={LayoutDashboard}>Dashboard</T> },
           { id: "offenses", label: <T i={ShieldAlert}>Offenses</T> },
@@ -24,6 +25,7 @@ export function Soc() {
           { id: "sensors", label: <T i={RadioTower}>Sensors</T> },
           { id: "setup", label: <T i={BookOpen}>Setup</T> },
         ]} />
+        <HowToUse page="soc" className="mb-1.5" />
       </div>
       <PageBody>
         {tab === "dashboard" && <Dashboard go={setTab} />}

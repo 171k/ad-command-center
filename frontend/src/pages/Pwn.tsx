@@ -4,6 +4,7 @@ import { Binary, Upload, Cpu, Wrench, Trash2, Save, Lock } from "lucide-react";
 import { get, post, del } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
+import { HowToUse } from "../components/HowToUse";
 import { Badge, CodeBlock, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { CodeEditor } from "../components/CodeEditor";
 
@@ -13,11 +14,12 @@ export function Pwn() {
   return (
     <>
       <PageHeader title="Pwn Solver" subtitle="ELF analysis · checksec · ROP/cyclic · exploit scripts (static; execution is sandboxed locally)" />
-      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line">
+      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line flex items-end justify-between gap-3">
         <Tabs active={tab} onChange={setTab} tabs={[
           { id: "cases", label: <span className="flex items-center gap-1.5"><Binary className="h-3.5 w-3.5" />Binaries</span> },
           { id: "utils", label: <span className="flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />Utilities</span> },
         ]} />
+        <HowToUse page="pwn" className="mb-1.5" />
       </div>
       <PageBody className="p-0">
         {tab === "cases" && <Cases sel={sel} setSel={setSel} />}

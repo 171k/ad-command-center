@@ -4,6 +4,7 @@ import { Terminal, Wrench, HeartPulse, Plus, Download, Copy as CopyIcon, Trash2,
 import { del, get, post, put } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
+import { HowToUse } from "../components/HowToUse";
 import { Badge, CodeBlock, EmptyState, Panel, Spinner, Tabs } from "../components/ui";
 import { CodeEditor } from "../components/CodeEditor";
 
@@ -12,13 +13,14 @@ export function Automation() {
   return (
     <>
       <PageHeader title="Automation" subtitle="Script library · utilities · service health" />
-      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line">
+      <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line flex items-end justify-between gap-3">
         <Tabs active={tab} onChange={setTab} tabs={[
           { id: "scripts", label: <span className="flex items-center gap-1.5"><Terminal className="h-3.5 w-3.5" />Scripts</span> },
           { id: "utils", label: <span className="flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />Utilities</span> },
           { id: "runner", label: <span className="flex items-center gap-1.5"><Play className="h-3.5 w-3.5" />Runner</span> },
           { id: "health", label: <span className="flex items-center gap-1.5"><HeartPulse className="h-3.5 w-3.5" />Health</span> },
         ]} />
+        <HowToUse page="automation" className="mb-1.5" />
       </div>
       <PageBody className="p-0">
         {tab === "scripts" && <Scripts />}
