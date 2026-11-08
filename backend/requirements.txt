@@ -6,6 +6,11 @@ argon2-cffi==23.1.0
 httpx==0.28.1
 python-multipart==0.0.20
 pyotp==2.9.0
+# Pwn Solver static analysis: symbol/GOT addresses, disassembly for the offset
+# estimate, and ROP gadgets. All deterministic, read-only, no execution.
+pyelftools==0.33
+capstone==5.0.9
+ROPgadget==7.7
 # NOTE: Semgrep is NOT installed here. It is a CLI invoked via subprocess, and its
 # own dependency tree conflicts with our pinned pydantic. It is installed in an
 # isolated venv in the Dockerfile (and via pipx in CI), with only the binary on PATH.

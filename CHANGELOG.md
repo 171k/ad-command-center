@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]: Pwn Solver upgrade
+
+- **Names the vulnerability** from imports + checksec: stack buffer overflow
+  (ret2win / ret2system / ret2libc) or possible format string, with the reasoning.
+- **Auto-estimates the overflow offset** by disassembling the vulnerable function
+  with capstone (buffer slot + saved rbp). Verified 56 bytes on the test binaries.
+- Collects everything the exploit needs: win/system/"/bin/sh" addresses, GOT, and
+  ROP gadgets (ROPgadget, with a byte-signature fallback).
+- **Generates a tailored pwntools script** with the offset and addresses filled in,
+  plus a find_offset() to confirm the exact offset on your own box.
+- New deps: pyelftools, capstone, ROPgadget (deterministic, read-only, no AI). The
+  binary is parsed and disassembled, never executed. Endpoint `/api/pwn/cases/{id}/solve`.
+
 ## [Unreleased]: Defense project scan (zip)
 
 - **Scan a whole service at once.** New Defense "Project (zip)" tab: upload a zip

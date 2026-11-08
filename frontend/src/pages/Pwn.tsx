@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Binary, Upload, Cpu, Wrench, Trash2, Save, Lock } from "lucide-react";
+import { Binary, Upload, Cpu, Wrench, Trash2, Save, Lock, Target } from "lucide-react";
 import { get, post, del } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
@@ -13,7 +13,7 @@ export function Pwn() {
   const [tab, setTab] = useState("cases");
   return (
     <>
-      <PageHeader title="Pwn Solver" subtitle="ELF analysis · checksec · ROP/cyclic · exploit scripts (static; execution is sandboxed locally)" />
+      <PageHeader title="Pwn Solver" subtitle="Names the vuln · estimates the offset · gadgets + addresses · generated pwntools script (static; run on Kali)" />
       <div className="px-5 pt-3 bg-bg-raised/40 border-b border-line flex items-end justify-between gap-3">
         <Tabs active={tab} onChange={setTab} tabs={[
           { id: "cases", label: <span className="flex items-center gap-1.5"><Binary className="h-3.5 w-3.5" />Binaries</span> },
@@ -68,6 +68,15 @@ function Cases({ sel, setSel }: { sel: number | null; setSel: (n: number | null)
   );
 }
 
+function Fact({ label, value, hint, mono, strong }: { label: string; value: string; hint?: string; mono?: boolean; strong?: boolean }) {
+  return (
+    <div>
+      <span className="text-ink-faint">{label}: </span>
+      <span className={`${mono ? "mono " : ""}${strong ? "text-ink font-semibold" : "text-ink-dim"}`} title={hint}>{value}</span>
+    </div>
+  );
+}
+
 function Prot({ label, on, goodWhenOn = true }: { label: string; on: boolean; goodWhenOn?: boolean }) {
   const good = goodWhenOn ? on : !on;
   return <Badge className={good ? "border-ok/30 text-ok bg-ok/10" : "border-bad/40 text-bad bg-bad/10"}>{label}: {on ? "on" : "off"}</Badge>;
@@ -79,9 +88,11 @@ function CaseDetail({ cid, onDelete }: { cid: number; onDelete: () => void }) {
   const { data: c } = useQuery({ queryKey: ["pwn-case", cid], queryFn: () => get(`/pwn/cases/${cid}`) });
   const { data: gadgets } = useQuery({ queryKey: ["pwn-gadgets", cid], queryFn: () => get(`/pwn/cases/${cid}/gadgets`) });
   const { data: tmpl } = useQuery({ queryKey: ["pwn-tmpl", cid], queryFn: () => get(`/pwn/cases/${cid}/template`) });
+  const { data: sol } = useQuery({ queryKey: ["pwn-solve", cid], queryFn: () => get(`/pwn/cases/${cid}/solve`) });
   const [script, setScript] = useState("");
+  const defaultScript = sol?.script || tmpl?.template || "";
   const saveScript = useMutation({
-    mutationFn: () => post(`/pwn/cases/${cid}/scripts`, { name: "exploit.py", body: script || tmpl?.template || "" }),
+    mutationFn: () => post(`/pwn/cases/${cid}/scripts`, { name: "exploit.py", body: script || defaultScript }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["pwn-case", cid] }); toast("ok", "Script saved"); },
   });
   const delCase = useMutation({ mutationFn: () => del(`/pwn/cases/${cid}`), onSuccess: onDelete });
@@ -114,6 +125,33 @@ function CaseDetail({ cid, onDelete }: { cid: number; onDelete: () => void }) {
         </div>
       </Panel>
 
+      {sol && (
+        <Panel title={<span className="flex items-center gap-2"><Target className="h-4 w-4 text-accent" />Solve</span>}>
+          <div className="p-3 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-accent/40 text-accent bg-accent/10 text-sm">{sol.vuln}</Badge>
+              <Badge className="border-line-strong text-ink-dim">approach: <span className="mono ml-1">{sol.approach}</span></Badge>
+              <Badge className={sol.confidence === "high" ? "border-ok/30 text-ok bg-ok/10" : sol.confidence === "medium" ? "border-warn/40 text-warn bg-warn/10" : "border-line-strong text-ink-faint"}>confidence: {sol.confidence}</Badge>
+              <Badge className="border-line-strong text-ink-faint">{sol.engine}</Badge>
+            </div>
+            <ul className="space-y-1 text-sm text-ink-dim">
+              {(sol.rationale || []).map((r: string, i: number) => (
+                <li key={i} className="flex gap-2"><span className="text-accent">•</span><span>{r}</span></li>
+              ))}
+            </ul>
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+              <Fact label="Overflow offset" value={sol.offset_estimate?.value != null ? `${sol.offset_estimate.value} bytes` : "run find_offset()"} hint={sol.offset_estimate?.how} strong />
+              {sol.win_functions?.length > 0 && <Fact label="Win function(s)" value={sol.win_functions.join(", ")} mono />}
+              {sol.binsh_addr && <Fact label='"/bin/sh" address' value={sol.binsh_addr} mono />}
+              {sol.shell_funcs?.length > 0 && <Fact label="Shell functions" value={sol.shell_funcs.join(", ")} mono />}
+              {sol.overflow_sinks?.length > 0 && <Fact label="Overflow sinks" value={sol.overflow_sinks.join(", ")} mono />}
+              <Fact label="Gadgets" value={`${Object.keys(sol.gadgets?.gadgets || {}).length} found (${sol.gadgets?.source})`} />
+            </div>
+            <p className="text-2xs text-ink-faint">{sol.disclaimer}</p>
+          </div>
+        </Panel>
+      )}
+
       <div className="grid md:grid-cols-2 gap-3">
         <Panel title="Interesting strings">
           <div className="p-3"><CodeBlock code={(c.analysis?.interesting_strings || []).join("\n") || "(none flagged)"} className="max-h-40" /></div>
@@ -136,9 +174,9 @@ function CaseDetail({ cid, onDelete }: { cid: number; onDelete: () => void }) {
         </div>
       </Panel>
 
-      <Panel title="Exploit script (pwntools)" actions={<button className="btn btn-sm" onClick={() => saveScript.mutate()}><Save className="h-3.5 w-3.5" />Save</button>}>
+      <Panel title={sol ? "Exploit script (generated, pwntools)" : "Exploit script (pwntools)"} actions={<button className="btn btn-sm" onClick={() => saveScript.mutate()}><Save className="h-3.5 w-3.5" />Save</button>}>
         <div className="p-3">
-          <CodeEditor value={script || tmpl?.template || ""} onChange={setScript} minRows={16} />
+          <CodeEditor value={script || defaultScript} onChange={setScript} minRows={16} />
           <p className="text-2xs text-ink-faint mt-2 flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" />Run crash/exploit tests in the local sandbox: <span className="mono">python3 scripts/pwn_sandbox.py exploit ./{c.filename} ./exploit.py</span></p>
         </div>
       </Panel>

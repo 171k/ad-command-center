@@ -155,16 +155,16 @@ export const HELP: Record<string, HelpDoc> = {
   pwn: {
     title: "Pwn Solver",
     intro:
-      "Static-analysis helpers for binary exploitation challenges. It inspects binaries and does the byte-math; it does not auto-solve them.",
+      "Static analysis for binary exploitation challenges. Upload an ELF and it names the likely vulnerability, collects what the exploit needs and generates a tailored pwntools script. The binary is parsed, never run.",
     sections: [
       {
         heading: "Binaries",
         ordered: true,
         steps: [
           "Upload an ELF challenge binary.",
-          "Read checksec (NX / PIE / RELRO / canary) plus symbols, strings and sections.",
-          "Search for ROP gadgets.",
-          "Generate a pwntools template and save your exploit script per case.",
+          "Read the Solve panel: the vulnerability, the approach (ret2win / ret2system / ret2libc), and why.",
+          "It estimates the overflow offset and lists win/system/\"/bin/sh\" addresses and ROP gadgets.",
+          "A tailored pwntools script is generated with the offset and addresses filled in. Save or edit it.",
         ],
       },
       {
@@ -175,7 +175,7 @@ export const HELP: Record<string, HelpDoc> = {
         ],
       },
     ],
-    tip: "Run the actual exploit against the target on Kali, using the saved pwntools template as your starting script.",
+    tip: "The offset is a static estimate. Confirm it by running the generated find_offset() on your own Kali box, then fire the exploit from there.",
   },
 
   tools: {
