@@ -38,7 +38,7 @@ export function Defense() {
         <HowToUse page="defense" className="mb-1.5" />
       </div>
       <PageBody className="p-0">
-        {tab === "analyze" && <Analyze />}
+        {tab === "analyze" && <Analyze onUseProject={() => setTab("project")} />}
         {tab === "project" && <ProjectScan />}
         {tab === "rules" && <RuleLibrary />}
         {tab === "saved" && <Saved />}
@@ -47,7 +47,7 @@ export function Defense() {
   );
 }
 
-function Analyze() {
+function Analyze({ onUseProject }: { onUseProject: () => void }) {
   const toast = useToast();
   const [code, setCode] = useState(SAMPLE);
   const [lang, setLang] = useState("auto");
@@ -63,6 +63,9 @@ function Analyze() {
   const uploadM = useMutation({
     mutationFn: async (file: File) => {
       const text = await file.text();
+      if (text.includes("\u0000")) {
+        throw new Error("That looks like a binary file. Upload a text source file, or use the Project (zip) tab for a whole project.");
+      }
       setCode(text);
       const q = lang === "auto" ? "" : `&language=${lang}`;
       const fd = new FormData();
@@ -73,10 +76,18 @@ function Analyze() {
     onError: (e: any) => toast("error", e.message),
   });
 
+  const ARCHIVE = /\.(zip|tar|gz|tgz|tar\.gz|rar|7z|jar|war|bz2|xz)$/i;
+
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) uploadM.mutate(f);
     e.target.value = ""; // allow re-selecting the same file
+    if (!f) return;
+    if (ARCHIVE.test(f.name)) {
+      toast("info", "That is an archive. Opening the Project (zip) tab to scan the whole project.");
+      onUseProject();
+      return;
+    }
+    uploadM.mutate(f);
   }
 
   const save = useMutation({
