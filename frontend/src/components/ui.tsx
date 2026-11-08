@@ -61,8 +61,8 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
   );
 }
 
-export function CodeBlock({ code, className = "", highlightLines = [] }: {
-  code: string; className?: string; highlightLines?: number[];
+export function CodeBlock({ code, className = "", highlightLines = [], wrap = false, noGutter = false }: {
+  code: string; className?: string; highlightLines?: number[]; wrap?: boolean; noGutter?: boolean;
 }) {
   const lines = code.split("\n");
   const hl = new Set(highlightLines);
@@ -73,10 +73,12 @@ export function CodeBlock({ code, className = "", highlightLines = [] }: {
           const n = i + 1;
           return (
             <div key={n} className={`flex ${hl.has(n) ? "bg-bad/10" : ""}`}>
-              <span className="select-none text-right pr-3 pl-2 text-ink-faint w-10 shrink-0 border-r border-line/60">
-                {n}
-              </span>
-              <span className={`pl-3 pr-4 whitespace-pre ${hl.has(n) ? "text-bad" : ""}`}>{ln || " "}</span>
+              {!noGutter && (
+                <span className="select-none text-right pr-3 pl-2 text-ink-faint w-10 shrink-0 border-r border-line/60">
+                  {n}
+                </span>
+              )}
+              <span className={`pl-3 pr-4 ${wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"} ${hl.has(n) ? "text-bad" : ""}`}>{ln || " "}</span>
             </div>
           );
         })}
