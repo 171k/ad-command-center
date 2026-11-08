@@ -114,7 +114,7 @@ async def pcap_status(ctx=_require):
 async def ingest_pcap(file: UploadFile = File(...), s: Settings = Depends(get_settings), ctx=_require):
     """Upload a PCAP/PCAPNG; extract HTTP transactions via tshark and correlate.
 
-    We do not load the whole capture into memory as events — tshark streams the
+    We do not load the whole capture into memory as events, tshark streams the
     HTTP records. TLS note: encrypted HTTPS bodies are not visible from PCAP alone.
     """
     import os
@@ -178,8 +178,8 @@ def _enforce_retention(s: Settings) -> None:
 async def clear_soc(ctx=_require):
     """Clear captured SIEM telemetry (events + correlated offenses + offense notes).
 
-    Removes demo OR real events — it does NOT touch scripts, findings, services,
-    sensors, settings, or the account. Intended to reset the dashboard to its
+    Removes demo OR real events, it does NOT touch scripts, findings, services,
+    sensors, settings or the account. Intended to reset the dashboard to its
     empty state before a competition so anything that appears is genuinely real.
     """
     events = db.query_one("SELECT COUNT(*) c FROM events")["c"]
@@ -224,7 +224,7 @@ async def dashboard(ctx=_require):
         "empty": events_total == 0,
         "empty_hint": (
             "No events yet. Connect a Suricata sensor (POST EVE JSON to /api/soc/ingest/sensor "
-            "with a sensor token), upload telemetry via /api/soc/ingest, or enable demo data."
+            "with a sensor token), upload telemetry via /api/soc/ingest or enable demo data."
             if events_total == 0 else None
         ),
     }
@@ -431,7 +431,7 @@ def _inspect_payload(ev: dict, s: Settings) -> dict:
     payload = ev.get("payload")
     b64 = ev.get("payload_b64")
     if not payload and not b64:
-        return {"available": False, "message": "Payload unavailable — telemetry did not include request bytes."}
+        return {"available": False, "message": "Payload unavailable, telemetry did not include request bytes."}
     truncated = False
     raw_text = payload or ""
     if b64 and not payload:

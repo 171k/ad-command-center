@@ -43,16 +43,16 @@ export function Findings() {
           <span className="ml-auto self-center text-xs text-ink-faint">{data?.total ?? 0} findings</span>
         </div>
         <Panel>
-          {items.length === 0 ? <EmptyState icon={<FileSearch className="h-7 w-7" />} title="No findings" hint="Create a finding, or send one from an SOC offense." /> : (
+          {items.length === 0 ? <EmptyState icon={<FileSearch className="h-7 w-7" />} title="No findings" hint="Create a finding or send one from an SOC offense." /> : (
             <table className="w-full row-hover">
               <thead><tr><th className="th">Title</th><th className="th">Source</th><th className="th">Severity</th><th className="th">Status</th><th className="th">By</th><th className="th">Updated</th></tr></thead>
               <tbody>{items.map((f: any) => (
                 <tr key={f.id} className="cursor-pointer" onClick={() => setSel(f.id)}>
                   <td className="td font-medium">{f.title}</td>
-                  <td className="td text-ink-dim">{f.source ?? f.category ?? "—"}</td>
+                  <td className="td text-ink-dim">{f.source ?? f.category ?? "-"}</td>
                   <td className="td"><Badge className={SEVERITY_META[f.severity]}>{f.severity}</Badge></td>
                   <td className="td text-ink-dim">{f.status}</td>
-                  <td className="td text-ink-faint">{f.label ?? "—"}</td>
+                  <td className="td text-ink-faint">{f.label ?? "-"}</td>
                   <td className="td text-ink-faint">{timeAgo(f.updated_at)}</td>
                 </tr>
               ))}</tbody>
@@ -103,7 +103,7 @@ function FindingDetail({ id, onClose }: { id: number; onClose: () => void }) {
           <Panel title="Notes">
             <div className="p-3 space-y-2">
               {(f.notes || []).map((n: any) => (
-                <div key={n.id} className="text-sm border-l-2 border-line pl-2"><div className="text-ink-dim">{n.body}</div><div className="text-2xs text-ink-faint">{n.label ?? "—"} · {n.created_at}</div></div>
+                <div key={n.id} className="text-sm border-l-2 border-line pl-2"><div className="text-ink-dim">{n.body}</div><div className="text-2xs text-ink-faint">{n.label ?? "-"} · {n.created_at}</div></div>
               ))}
               <div className="flex gap-2"><input className="input flex-1" placeholder="Add note…" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && note && noteM.mutate()} /><button className="btn" disabled={!note} onClick={() => noteM.mutate()}>Add</button></div>
             </div>

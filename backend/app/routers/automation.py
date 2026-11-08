@@ -169,7 +169,7 @@ async def execution_status(s: Settings = Depends(get_settings), ctx=_require):
         "reason": (
             "Controlled task execution is disabled by default. When enabled "
             "(ADCC_ENABLE_TASK_EXECUTION=1, recommended only behind HTTPS) it runs ONLY "
-            "the fixed allowlist of local, non-target-facing utilities below — in a "
+            "the fixed allowlist of local, non-target-facing utilities below, in a "
             "sandbox (no shell, scrubbed env, CPU/memory/time limits). Target-facing "
             "exploitation stays manual on Kali. The library, editor, downloads and "
             "offline utilities work regardless."

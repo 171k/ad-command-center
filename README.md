@@ -2,11 +2,11 @@
 
 A private, self-hosted operations center for a four-person **Attack & Defense CTF**
 team. It centralizes offensive references, deterministic defensive code analysis,
-reusable automation, and a beginner-friendly **mini-SIEM** with offense correlation
+reusable automation and a beginner-friendly **mini-SIEM** with offense correlation
 and evidence-based attack-outcome classification.
 
 > **No runtime AI.** Detection and analysis use deterministic rules, curated
-> signatures, traditional parsers, and a correlation engine — never an LLM.
+> signatures, traditional parsers and a correlation engine, never an LLM.
 > The core application runs fully offline.
 
 ---
@@ -14,22 +14,22 @@ and evidence-based attack-outcome classification.
 ## What it does
 
 Four workspaces behind **one shared team account** (four concurrent sessions,
-optional "Player 1…Substitute" labels for attribution — not strong identity):
+optional "Player 1…Substitute" labels for attribution, not strong identity):
 
-- **Attack** — authorized target registry (scope allowlist), bounded recon
-  (TCP / banner / HTTP fingerprint), exploit-technique knowledge base, and a
+- **Attack**: authorized target registry (scope allowlist), bounded recon
+  (TCP / banner / HTTP fingerprint), exploit-technique knowledge base and a
   flag utility with dedup + a configurable (off-by-default) submission adapter.
-- **Defense** — paste code, get a structured analysis from a curated multi-language
+- **Defense**: paste code, get a structured analysis from a curated multi-language
   rule engine (optionally backed by local Semgrep). Each finding shows matched
   lines, why it's dangerous, a safe test, a language-specific patch, a regression
-  test, references, and honest limitations. "No match" never means "secure."
-- **Automation** — script library with revisions/download, deterministic utilities
-  (base64 / URL / hex / hashes / JWT-decode-no-verify / JSON / timestamp), and real
+  test, references and honest limitations. "No match" never means "secure."
+- **Automation**: script library with revisions/download, deterministic utilities
+  (base64 / URL / hex / hashes / JWT-decode-no-verify / JSON / timestamp) and real
   service health checks. Controlled execution is gated off by default.
-- **Network / SOC** — EVE/access-log/PCAP ingestion → **offense correlation** that
+- **Network / SOC**: EVE/access-log/PCAP ingestion → **offense correlation** that
   groups thousands of automated attempts into single offenses, with **CONFIRMED /
   POSSIBLE / ATTEMPTED / BLOCKED** outcomes backed by transparent evidence, a
-  payload inspector (raw / URL-decoded / hex), an event explorer, sensors, and
+  payload inspector (raw / URL-decoded / hex), an event explorer, sensors and
   copy-pasteable setup guides (tcpdump, Suricata, TShark, Zeek, Tulip).
 
 Shared **Findings** sync live across sessions (Server-Sent Events).
@@ -66,7 +66,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 ```bash
-# 2. Frontend (separate terminal) — proxies /api to the backend on :8000
+# 2. Frontend (separate terminal): proxies /api to the backend on :8000
 cd frontend
 npm install
 npm run dev                       # http://localhost:5173
@@ -98,20 +98,20 @@ python -m app.admin create-sensor edge-1   # register a sensor, prints a one-tim
 
 ## Deployment & more
 
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Docker Compose, HTTPS, backups, rollback.
-- [docs/SECURITY.md](docs/SECURITY.md) — threat model, secrets, isolation, exposure.
-- [docs/SIEM.md](docs/SIEM.md) — detection, correlation, outcome evidence rules.
-- [docs/NETWORK.md](docs/NETWORK.md) — sensors, PCAP, TLS visibility limits.
-- [docs/GITHUB.md](docs/GITHUB.md) — private repo, branches, PRs, CI/CD secrets.
-- [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md) — reused tools, licenses, versions.
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): Docker Compose, HTTPS, backups, rollback.
+- [docs/SECURITY.md](docs/SECURITY.md): threat model, secrets, isolation, exposure.
+- [docs/SIEM.md](docs/SIEM.md): detection, correlation, outcome evidence rules.
+- [docs/NETWORK.md](docs/NETWORK.md): sensors, PCAP, TLS visibility limits.
+- [docs/GITHUB.md](docs/GITHUB.md): private repo, branches, PRs, CI/CD secrets.
+- [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md): reused tools, licenses, versions.
 
 ## Common troubleshooting
 
 | Symptom | Fix |
 |---|---|
 | `Account not configured` on login | Run `python -m app.admin set-password`. |
-| 403 on actions | CSRF cookie missing — ensure the frontend is same-origin (dev proxy or Caddy). |
-| SOC dashboard empty | Ingest EVE/PCAP, register a sensor, or load demo data. |
+| 403 on actions | CSRF cookie missing, ensure the frontend is same-origin (dev proxy or Caddy). |
+| SOC dashboard empty | Ingest EVE/PCAP, register a sensor or load demo data. |
 | PCAP upload disabled | Install `tshark`; EVE/access-log ingestion still work. |
 | Semgrep note "not installed" | Built-in rules still run; install `semgrep` for more coverage. |
 

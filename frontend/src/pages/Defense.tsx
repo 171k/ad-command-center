@@ -88,7 +88,7 @@ function Analyze() {
       <div className="min-h-0 overflow-auto">
         {!result ? (
           <Panel className="h-full"><EmptyState icon={<Shield2 />} title="No analysis yet"
-            hint="Paste code and run Analyze. Findings show matched lines, why the pattern is dangerous, a patch, and a regression test. 'No match' never means the code is proven safe." /></Panel>
+            hint="Paste code and run Analyze. Findings show matched lines, why the pattern is dangerous, a patch and a regression test. 'No match' never means the code is proven safe." /></Panel>
         ) : (
           <Results result={result} />
         )}

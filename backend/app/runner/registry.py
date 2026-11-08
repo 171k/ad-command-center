@@ -2,9 +2,9 @@
 
 Each task is a fixed local utility: a specific bundled script run by the Python
 interpreter with a strict parameter schema. There is no way to run an arbitrary
-command, binary, path, or shell string through this registry — args are validated
+command, binary, path or shell string through this registry, args are validated
 and passed to the child as JSON on stdin (never interpolated into a command line).
-All tasks are offline, deterministic, and non-target-facing.
+All tasks are offline, deterministic and non-target-facing.
 """
 from __future__ import annotations
 

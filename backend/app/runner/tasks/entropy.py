@@ -23,9 +23,9 @@ def main():
     data = text.encode("utf-8", "replace")
     ent = shannon(data)
     printable = sum(1 for b in data if 32 <= b < 127)
-    verdict = ("high — likely encrypted/compressed/random" if ent > 7.2
-               else "medium — possibly encoded" if ent > 4.5
-               else "low — likely plain text")
+    verdict = ("high, likely encrypted/compressed/random" if ent > 7.2
+               else "medium, possibly encoded" if ent > 4.5
+               else "low, likely plain text")
     print(json.dumps({
         "length": len(data),
         "shannon_entropy_bits_per_byte": ent,

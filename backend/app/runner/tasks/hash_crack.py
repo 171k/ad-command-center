@@ -3,7 +3,7 @@
 
 Reads {"hash": "...", "algo": "md5|sha1|sha256"} on stdin.
 Offline, bounded (fixed small list), CPU-limited by the runner. This is a
-convenience check for weak hashes — not a cracking rig. No network, no files.
+convenience check for weak hashes, not a cracking rig. No network, no files.
 """
 import hashlib
 import json

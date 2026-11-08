@@ -1,11 +1,11 @@
-"""PCAP ingestion via tshark (reuse over reinvention — no custom packet parser).
+"""PCAP ingestion via tshark (reuse over reinvention, no custom packet parser).
 
 We shell out to the trusted `tshark` binary to extract HTTP request metadata,
 then feed it through the normal normalization + correlation path. If tshark is
 not installed we fail clearly rather than pretending to parse packets.
 
 Safety: the uploaded file is validated by magic bytes, size-capped, processed
-with a timeout, and never executed. Packet payloads are stored as escaped text.
+with a timeout and never executed. Packet payloads are stored as escaped text.
 """
 from __future__ import annotations
 

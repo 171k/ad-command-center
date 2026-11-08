@@ -1,11 +1,11 @@
 """Outcome classification with transparent, defensible evidence.
 
-Rules (deliberately conservative — see SIEM.md):
+Rules (deliberately conservative, see SIEM.md):
 
 CONFIRMED  only with direct, attributable application-level proof tied to the
            request (an instrumented service recording an unauthorized action,
            a verified flag read, a returned command-output marker). NEVER from
-           an IDS signature, a 200, or a 500 alone.
+           an IDS signature, a 200 or a 500 alone.
 POSSIBLE   a suspicious exploit payload PLUS a corroborating response anomaly
            (reflected payload, SQL error leakage, template-evaluation result,
            command-output fragment) that matches expected exploit behaviour.
@@ -34,7 +34,7 @@ def classify(ev: dict, rec: dict | None = None) -> tuple[str, list[dict]]:
     resp_body = str(rec.get("response_body") or rec.get("resp_body") or "")
     status = ev.get("http_status")
 
-    # 1) CONFIRMED — explicit attributable proof only.
+    # 1) CONFIRMED: explicit attributable proof only.
     proof = rec.get("app_proof") or rec.get("proof")
     if proof:
         evidence.append({
@@ -51,7 +51,7 @@ def classify(ev: dict, rec: dict | None = None) -> tuple[str, list[dict]]:
         })
         return "confirmed", evidence
 
-    # 2) POSSIBLE — suspicious payload + corroborating response anomaly.
+    # 2) POSSIBLE: suspicious payload + corroborating response anomaly.
     attack_payload = category not in ("other", "scanner", "ids_alert")
 
     if attack_payload and resp_body:

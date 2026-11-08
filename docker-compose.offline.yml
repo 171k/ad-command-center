@@ -1,5 +1,5 @@
 # Fully-offline A&D Command Center (laptop / air-gapped / competition LAN).
-# No GitHub, no Azure, no external API, no Tailscale, no domain — plain HTTP on
+# No GitHub, no Azure, no external API, no Tailscale, no domain: plain HTTP on
 # http://localhost:8080. Everything runs from local images + a local volume.
 #
 #   docker compose -f docker-compose.offline.yml up -d --build

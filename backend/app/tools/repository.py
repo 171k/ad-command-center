@@ -1,4 +1,4 @@
-"""Server-hosted tool repository: safe artifact storage, SHA-256 integrity,
+"""Server-hosted tool repository: safe artifact storage, SHA-256 integrity
 and offline-bundle export.
 
 Design:
@@ -7,7 +7,7 @@ Design:
   - Filenames are sanitized; stored paths are validated to stay within tools_dir
     (no path traversal). Downloads stream from disk with the checksum in a header.
   - The offline bundle is a single .zip containing every hosted artifact, a
-    manifest (catalog + checksums), the `adtools` CLI, and a README — so the team
+    manifest (catalog + checksums), the `adtools` CLI and a README, so the team
     can install everything with no network / no GitHub.
 """
 from __future__ import annotations
@@ -121,7 +121,7 @@ def _now() -> str:
 
 
 def build_offline_bundle(adtools_source: str, readme: str) -> bytes:
-    """Return a .zip with manifest, all artifacts, the adtools CLI, and a README."""
+    """Return a .zip with manifest, all artifacts, the adtools CLI and a README."""
     man = manifest()
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:

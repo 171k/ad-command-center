@@ -162,7 +162,7 @@ def analyze(code: str, language: str | None = None, use_semgrep: bool = True) ->
         "category_counts": categories,
         "findings": findings,
         "no_match_notice": (
-            "No rule matched. This does NOT prove the code is secure — it only "
+            "No rule matched. This does NOT prove the code is secure, it only "
             "means none of the curated signatures fired. Review manually and add "
             "context (framework, input sources) for a stronger assessment."
             if not findings else None

@@ -1,4 +1,4 @@
-# A&D Command Center — production-ish compose for a ~4GB / 2 vCPU VPS.
+# A&D Command Center: production-ish compose for a ~4GB / 2 vCPU VPS.
 # Usage:
 #   cp .env.example .env   &&  edit it (set ADCC_SECRET_KEY, DOMAIN)
 #   docker compose up -d --build
@@ -24,7 +24,7 @@ services:
       - adcc-data:/data
     expose:
       - "8000"
-    # Not published to the host — only the reverse proxy reaches it.
+    # Not published to the host: only the reverse proxy reaches it.
     deploy:
       resources:
         limits:

@@ -1,5 +1,5 @@
 -- Pwn Solver cases: uploaded challenge binaries (stored on disk), their static
--- analysis, notes, and saved exploit scripts. Binaries are NEVER executed by the
+-- analysis, notes and saved exploit scripts. Binaries are NEVER executed by the
 -- web app; execution happens only in a separate, gated local sandbox worker.
 
 CREATE TABLE IF NOT EXISTS pwn_cases (

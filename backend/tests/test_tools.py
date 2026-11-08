@@ -1,4 +1,4 @@
-"""Tool Repository: catalog, checksum integrity, authenticated download, and the
+"""Tool Repository: catalog, checksum integrity, authenticated download and the
 full offline bundle flow (acceptance criteria 1-3)."""
 import io
 import zipfile
@@ -36,7 +36,7 @@ def test_upload_download_checksum(auth):
     expected = r.json()["sha256"]
     assert expected == repo.sha256_bytes(payload)
 
-    # download — content matches, server returns checksum header, no GitHub involved
+    # download: content matches, server returns checksum header, no GitHub involved
     dl = client.get(f"/api/tools/demotool/artifacts/{aid}/download")
     assert dl.status_code == 200
     assert dl.content == payload
@@ -76,7 +76,7 @@ def test_offline_bundle_install(auth, tmp_path):
     assert any(n.startswith("artifacts/") and n.endswith("ffuf") for n in names)
     zf.extractall(tmp_path)
 
-    # OFFLINE install via the bundled CLI logic — verifies checksum, places the file
+    # OFFLINE install via the bundled CLI logic: verifies checksum, places the file
     import importlib.util
     spec = importlib.util.spec_from_file_location("adtools_cli", tmp_path / "adtools.py")
     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)

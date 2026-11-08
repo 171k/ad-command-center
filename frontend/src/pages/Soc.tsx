@@ -132,7 +132,7 @@ function Dashboard({ go }: { go: (t: string) => void }) {
           (demo or real), resetting the dashboard to its empty state.
         </p>
         <p className="text-xs text-ink-faint mt-2">
-          Scripts, findings, services, sensors, settings, and your account are <strong>not</strong> affected.
+          Scripts, findings, services, sensors, settings and your account are <strong>not</strong> affected.
           Live sensors will repopulate the dashboard as new traffic arrives.
         </p>
       </Dialog>
@@ -239,7 +239,7 @@ function OffenseDetail({ id, onClose }: { id: number; onClose: () => void }) {
             <Panel title="Why this outcome">
               <div className="p-3 space-y-1.5">
                 {o.evidence.signals.map((s: any, i: number) => (
-                  <div key={i} className="text-xs"><span className="mono text-accent">{s.signal}</span> — <span className="text-ink-dim">{s.detail}</span></div>
+                  <div key={i} className="text-xs"><span className="mono text-accent">{s.signal}</span> · <span className="text-ink-dim">{s.detail}</span></div>
                 ))}
               </div>
             </Panel>
@@ -259,7 +259,7 @@ function OffenseDetail({ id, onClose }: { id: number; onClose: () => void }) {
               {(o.notes || []).map((n: any) => (
                 <div key={n.id} className="text-sm border-l-2 border-line pl-2">
                   <div className="text-ink-dim">{n.body}</div>
-                  <div className="text-2xs text-ink-faint">{n.label ?? "—"} · {n.created_at}</div>
+                  <div className="text-2xs text-ink-faint">{n.label ?? "-"} · {n.created_at}</div>
                 </div>
               ))}
               <div className="flex gap-2">
@@ -275,9 +275,9 @@ function OffenseDetail({ id, onClose }: { id: number; onClose: () => void }) {
             <table className="w-full row-hover">
               <thead><tr><th className="th">Time</th><th className="th">Method</th><th className="th">URL</th><th className="th">Status</th><th className="th">Outcome</th></tr></thead>
               <tbody>{(o.sample_events || []).map((e: any) => (
-                <tr key={e.id}><td className="td text-ink-faint">{e.ts}</td><td className="td mono">{e.http_method ?? "—"}</td>
-                  <td className="td mono text-xs truncate max-w-[16rem]">{e.http_url ?? "—"}</td>
-                  <td className="td mono">{e.http_status ?? "—"}</td><td className="td">{e.outcome}</td></tr>
+                <tr key={e.id}><td className="td text-ink-faint">{e.ts}</td><td className="td mono">{e.http_method ?? "-"}</td>
+                  <td className="td mono text-xs truncate max-w-[16rem]">{e.http_url ?? "-"}</td>
+                  <td className="td mono">{e.http_status ?? "-"}</td><td className="td">{e.outcome}</td></tr>
               ))}</tbody>
             </table>
           </Panel>
@@ -287,7 +287,7 @@ function OffenseDetail({ id, onClose }: { id: number; onClose: () => void }) {
   );
 }
 const Q = ({ q, a }: { q: string; a: any }) => (
-  <div><div className="text-2xs font-semibold uppercase tracking-wider text-ink-faint">{q}</div><div className="text-sm text-ink">{a ?? "—"}</div></div>
+  <div><div className="text-2xs font-semibold uppercase tracking-wider text-ink-faint">{q}</div><div className="text-sm text-ink">{a ?? "-"}</div></div>
 );
 
 function EventCard({ title, ev }: { title: string; ev: any }) {
@@ -309,7 +309,7 @@ function EventCard({ title, ev }: { title: string; ev: any }) {
   );
 }
 const KV = ({ k, v, mono }: any) => (
-  <div><span className="text-ink-faint">{k}: </span><span className={mono ? "mono" : ""}>{v ?? "—"}</span></div>
+  <div><span className="text-ink-faint">{k}: </span><span className={mono ? "mono" : ""}>{v ?? "-"}</span></div>
 );
 
 function PayloadInspector({ pi }: { pi: any }) {
@@ -360,7 +360,7 @@ function Events() {
         <span className="text-xs text-ink-faint self-center ml-auto">{data?.total ?? 0} events</span>
       </div>
       <Panel>
-        {items.length === 0 ? <EmptyState title="No events" hint="Ingest Suricata EVE or access logs. No SQL needed — use the filters above." /> : (
+        {items.length === 0 ? <EmptyState title="No events" hint="Ingest Suricata EVE or access logs. No SQL needed. Use the filters above." /> : (
           <table className="w-full row-hover">
             <thead><tr><th className="th">Time</th><th className="th">Src</th><th className="th">Dst</th><th className="th">Technique</th><th className="th">Method</th><th className="th">Status</th><th className="th">Outcome</th></tr></thead>
             <tbody>{items.map((e: any) => (
@@ -369,8 +369,8 @@ function Events() {
                 <td className="td mono text-xs">{e.src_ip}</td>
                 <td className="td mono text-xs">{e.dest_ip}{e.dest_port ? `:${e.dest_port}` : ""}</td>
                 <td className="td">{tech(e.category)}</td>
-                <td className="td mono">{e.http_method ?? "—"}</td>
-                <td className="td mono">{e.http_status ?? "—"}</td>
+                <td className="td mono">{e.http_method ?? "-"}</td>
+                <td className="td mono">{e.http_status ?? "-"}</td>
                 <td className="td"><Badge className={(OUTCOME_META[e.outcome] || OUTCOME_META.attempted).cls}>{(OUTCOME_META[e.outcome] || OUTCOME_META.attempted).label}</Badge></td>
               </tr>
             ))}</tbody>
@@ -393,7 +393,7 @@ function EventDrawer({ id, onClose }: { id: number; onClose: () => void }) {
             <div className="p-3 space-y-1.5">
               <Badge className={(OUTCOME_META[e.outcome_detail?.outcome] || OUTCOME_META.attempted).cls}>{(OUTCOME_META[e.outcome_detail?.outcome] || OUTCOME_META.attempted).label}</Badge>
               {(e.outcome_detail?.evidence || []).map((s: any, i: number) => (
-                <div key={i} className="text-xs"><span className="mono text-accent">{s.signal}</span> — <span className="text-ink-dim">{s.detail}</span></div>
+                <div key={i} className="text-xs"><span className="mono text-accent">{s.signal}</span> · <span className="text-ink-dim">{s.detail}</span></div>
               ))}
             </div>
           </Panel>
@@ -454,7 +454,7 @@ function Sensors() {
         </div>
         {token && (
           <div className="mx-3 mb-3 well p-3">
-            <div className="text-xs text-warn mb-1">Copy this token now — it is shown only once.</div>
+            <div className="text-xs text-warn mb-1">Copy this token now; it is shown only once.</div>
             <div className="flex items-center gap-2"><code className="mono text-xs break-all flex-1">{token}</code><CopyButton text={token} /></div>
           </div>
         )}

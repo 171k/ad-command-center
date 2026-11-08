@@ -1,17 +1,16 @@
-# Labs — instrumented proof of outcome classification
+# Labs: instrumented proof of outcome classification
 
 This directory answers the question *"how do we confirm an attack actually
-succeeded?"* with a **real, runnable demonstration** — not synthetic SIEM events.
+succeeded?"* with a **real, runnable demonstration**, not synthetic SIEM events.
 
 ## What's here
 
-- **`vuln_service.py`** — a deliberately vulnerable, **instrumented** web service.
-  It has a real SQL-injection flaw, a real secret flag in its database, and emits
+- **`vuln_service.py`**: a deliberately vulnerable, **instrumented** web service.
+  It has a real SQL-injection flaw, a real secret flag in its database and emits
   Suricata-EVE-shaped telemetry for every request. Because it knows its own flag,
-  it attaches an `app_proof` marker when a response actually discloses the flag —
-  direct, attributable evidence tied to a specific request.
-- **`demo_outcomes.py`** — launches the service, performs **real HTTP SQLi attacks**
-  over the network, forwards the service's telemetry to the Command Center, and
+  it attaches an `app_proof` marker when a response actually discloses the flag: direct, attributable evidence tied to a specific request.
+- **`demo_outcomes.py`**: launches the service, performs **real HTTP SQLi attacks**
+  over the network, forwards the service's telemetry to the Command Center and
   reads back the SIEM's verdicts.
 
 > ⚠️ `vuln_service.py` is intentionally insecure. Run it only on localhost.
@@ -34,11 +33,11 @@ Running it produces (verified):
 
 Two points for the record:
 
-1. **CONFIRMED comes from real application evidence** — the flag was actually
-   returned to the attacker, and the service recorded it. Not an IDS guess, not an
+1. **CONFIRMED comes from real application evidence**, the flag was actually
+   returned to the attacker and the service recorded it. Not an IDS guess, not an
    HTTP-200 assumption.
 2. **The same winning exploit, replayed with only passive/IDS-level data** (no
-   response body, no proof), is classified **ATTEMPTED** — the SIEM refuses to
+   response body, no proof), is classified **ATTEMPTED**, the SIEM refuses to
    claim success it cannot prove. This is the honesty guarantee in action.
 
 The same contract is locked by `backend/tests/test_evidence.py`.
@@ -61,7 +60,7 @@ BASE=http://127.0.0.1:8010 SENSOR_TOKEN=$TOKEN CC_PASSWORD=demopass12345 \
 
 The CONFIRMED verdict depends on the SIEM having **application-level telemetry**
 (response bodies / instrumentation) from the defended service. In an A&D CTF you
-typically run your own vulnerable service, so you *can* capture that — ship its
+typically run your own vulnerable service, so you *can* capture that, ship its
 access logs (with responses) or run the instrumentation pattern shown here. Where
 you only have passive network data, outcomes stay POSSIBLE/ATTEMPTED by design.
 See `docs/NETWORK.md` and `docs/SIEM.md`.

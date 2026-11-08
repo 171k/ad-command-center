@@ -6,7 +6,7 @@ identities are separate concerns.
 
 ## 1. Create the private repository
 
-> Must be **private** — it may contain internal addresses and security notes.
+> Must be **private**, it may contain internal addresses and security notes.
 
 With the `gh` CLI (authenticated):
 
@@ -38,24 +38,24 @@ GitHub Free private repos may not include branch protection, so adopt a conventi
 - Feature branches: `feat/<topic>`, `fix/<topic>`.
 - Open a PR; CI (`.github/workflows/ci.yml`) runs lint + backend tests + frontend
   build + Docker build. At least one teammate reviews. Merge to `main`.
-- If branch protection **is** available: require the `backend`, `frontend`, and
+- If branch protection **is** available: require the `backend`, `frontend` and
   `docker-build` checks and one approving review.
 
 ## 4. CI/CD (secure deploy over Tailscale)
 
-- **CI** runs on every push/PR: Ruff, pytest, `tsc` type-check, Vite build, and
+- **CI** runs on every push/PR: Ruff, pytest, `tsc` type-check, Vite build and
   Docker image builds. Default token is read-only.
 - **Deploy** (`deploy.yml`) triggers only after CI succeeds on `main`, in the
   protected `production` environment. A GitHub-hosted runner joins your **private
   Tailscale tailnet** as an **ephemeral, tagged (`tag:ci`) node**, reaches **only**
-  the VM's SSH port (enforced by your tailnet ACL), pulls, rebuilds, health-gates,
+  the VM's SSH port (enforced by your tailnet ACL), pulls, rebuilds, health-gates
   and rolls back on failure. **No public SSH rule and no permanent self-hosted
   runner.** Untrusted PR code never sees production secrets (deploy runs on `main`
   via the environment, not on PR branches).
 
 ### One-time setup
 
-**A. On the VM — join the tailnet** (you run this; installing the daemon is a
+**A. On the VM, join the tailnet** (you run this; installing the daemon is a
 persistence action reserved for the operator):
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
@@ -64,15 +64,15 @@ tailscale ip -4          # note the 100.x.y.z address -> this is DEPLOY_HOST
 ```
 
 **B. In the Tailscale admin console** (https://login.tailscale.com/admin):
-1. **Access controls** — add tags and an ACL that lets CI reach only the VM's SSH:
+1. **Access controls**, add tags and an ACL that lets CI reach only the VM's SSH:
    ```jsonc
    "tagOwners": { "tag:ci": ["autogroup:admin"], "tag:prod": ["autogroup:admin"] },
    "acls": [ { "action": "accept", "src": ["tag:ci"], "dst": ["tag:prod:22"] } ]
    ```
-2. **Settings → OAuth clients** — create a client with the **`auth_keys`** scope and
+2. **Settings → OAuth clients**, create a client with the **`auth_keys`** scope and
    the tag **`tag:ci`**. Copy the client ID and secret.
 
-**C. GitHub — set the `production` environment secrets** (Settings → Environments → production):
+**C. GitHub, set the `production` environment secrets** (Settings → Environments → production):
 
 | Secret | Value |
 |---|---|
@@ -86,16 +86,16 @@ Then set the repository **variable** `DEPLOY_ENABLED=true`. Until it is set, the
 Deploy workflow stays dormant (does not run or fail).
 
 Already wired in this repo: the read-only `vm-pull` deploy key, the VM app dir as a
-git checkout of `origin/main` (with `.env` preserved), `DEPLOY_USER`/`DEPLOY_SSH_KEY`,
+git checkout of `origin/main` (with `.env` preserved), `DEPLOY_USER`/`DEPLOY_SSH_KEY`
 and the docker-group membership. You only need to add Tailscale (A–B) and the two
 `TS_*` secrets, then point `DEPLOY_HOST` at the tailnet address.
 
 Application secrets (`ADCC_SECRET_KEY`, the shared password) live in the server's
-`.env` / admin CLI — **not** in GitHub.
+`.env` / admin CLI, **not** in GitHub.
 
 ## 6. Hardening notes
 
 - Pin third-party Actions to commit SHAs for supply-chain safety (this repo pins to
   release tags for readability; replace with SHAs in a security-sensitive setup).
 - Enable Dependabot / secret scanning in repo settings.
-- Never commit `.env`, DBs, PCAPs, flags, or keys — `.gitignore` already blocks them.
+- Never commit `.env`, DBs, PCAPs, flags or keys, `.gitignore` already blocks them.

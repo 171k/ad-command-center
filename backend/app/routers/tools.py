@@ -201,7 +201,7 @@ async def delete_artifact(slug: str, aid: int, ctx=_require):
     return {"ok": True}
 
 
-_BUNDLE_README = """# A&D Command Center — Offline Tool Bundle
+_BUNDLE_README = """# A&D Command Center, Offline Tool Bundle
 
 This bundle lets you install the team's approved tools with NO network and NO
 GitHub access.

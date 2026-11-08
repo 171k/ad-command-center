@@ -1,4 +1,4 @@
-# Backend image — FastAPI + uvicorn, non-root, with tshark for PCAP parsing.
+# Backend image: FastAPI + uvicorn, non-root, with tshark for PCAP parsing.
 FROM python:3.12-slim AS base
 
 # tshark enables the PCAP ingestion feature; set INSTALL_TSHARK=false to slim the image.

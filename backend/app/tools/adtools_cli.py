@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""adtools — retrieve approved tools from the A&D Command Center without GitHub.
+"""adtools, retrieve approved tools from the A&D Command Center without GitHub.
 
 Two modes:
   online   : talks to the server over HTTPS (cert-verified) with your login.
-  --offline: uses a local bundle (manifest.json + artifacts/) — no network at all.
+  --offline: uses a local bundle (manifest.json + artifacts/), no network at all.
 
 Integrity: every artifact is checked against the SHA-256 in the manifest / the
 server's X-Checksum-SHA256 header before it is written or used. No `curl | bash`,
@@ -169,7 +169,7 @@ def cmd_search(src, args):
     for t in src.manifest()["tools"]:
         blob = f"{t['slug']} {t['name']} {t.get('description','')} {' '.join(t.get('tags',[]))}".lower()
         if q in blob:
-            print(f"{t['slug']:<16} {t['name']} — {t.get('description','')[:60]}")
+            print(f"{t['slug']:<16} {t['name']}, {t.get('description','')[:60]}")
 
 
 def cmd_info(src, args):

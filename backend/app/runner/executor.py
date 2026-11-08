@@ -3,7 +3,7 @@
 Security properties:
   - No shell, ever: the child is spawned as an argv list
     [python, -I, <bundled script>]; `-I` isolates it (ignores env vars, user
-    site, and the CWD on sys.path). Arguments are passed as JSON on STDIN, so
+    site and the CWD on sys.path). Arguments are passed as JSON on STDIN, so
     nothing attacker-controlled is ever placed on a command line.
   - Only allowlisted task scripts can run (registry.BY_ID); the resolved script
     path is verified to stay inside the tasks directory.
@@ -14,7 +14,7 @@ Security properties:
   - Output is truncated to a bounded size.
   - A semaphore caps concurrent executions.
   - The feature is gated off by default (enable_task_execution) and never runs
-    a user-supplied command — only the fixed utilities in the registry.
+    a user-supplied command, only the fixed utilities in the registry.
 """
 from __future__ import annotations
 

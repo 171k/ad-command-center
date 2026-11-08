@@ -17,7 +17,7 @@ export function Settings() {
   const revokeAll = useMutation({ mutationFn: () => post("/auth/sessions/revoke-all"), onSuccess: () => { qc.invalidateQueries({ queryKey: ["sessions"] }); toast("ok", "Other sessions revoked"); } });
   const rotate = useMutation({
     mutationFn: () => post("/auth/password", { current_password: cur, new_password: nw }),
-    onSuccess: () => { toast("ok", "Password changed — all sessions signed out"); location.reload(); },
+    onSuccess: () => { toast("ok", "Password changed, all sessions signed out"); location.reload(); },
     onError: (e: any) => toast("error", e.message),
   });
 
@@ -29,8 +29,8 @@ export function Settings() {
           <table className="w-full row-hover">
             <thead><tr><th className="th">User</th><th className="th">Fingerprint</th><th className="th">IP</th><th className="th">Last seen</th></tr></thead>
             <tbody>{(sessions?.sessions || []).map((s: any) => (
-              <tr key={s.fingerprint}><td className="td">{s.label ?? "—"} {s.fingerprint === sessions.current && <Badge className="border-accent/40 text-accent bg-accent/10">this</Badge>}</td>
-                <td className="td mono text-xs">{s.fingerprint}</td><td className="td mono text-xs">{s.ip ?? "—"}</td><td className="td text-ink-faint">{timeAgo(s.last_seen_at)}</td></tr>
+              <tr key={s.fingerprint}><td className="td">{s.label ?? "-"} {s.fingerprint === sessions.current && <Badge className="border-accent/40 text-accent bg-accent/10">this</Badge>}</td>
+                <td className="td mono text-xs">{s.fingerprint}</td><td className="td mono text-xs">{s.ip ?? "-"}</td><td className="td text-ink-faint">{timeAgo(s.last_seen_at)}</td></tr>
             ))}</tbody>
           </table>
           <p className="text-2xs text-ink-faint p-3">Each teammate has their own account; findings, offenses and SIEM data are shared. "Revoke my other sessions" and password changes apply only to your own account.</p>
@@ -62,7 +62,7 @@ export function Settings() {
             <table className="w-full row-hover">
               <thead><tr><th className="th">Time</th><th className="th">By</th><th className="th">Action</th><th className="th">Detail</th></tr></thead>
               <tbody>{audit.items.map((a: any, i: number) => (
-                <tr key={i}><td className="td text-ink-faint whitespace-nowrap">{a.at}</td><td className="td">{a.label ?? "—"}</td>
+                <tr key={i}><td className="td text-ink-faint whitespace-nowrap">{a.at}</td><td className="td">{a.label ?? "-"}</td>
                   <td className="td mono text-xs">{a.action}</td><td className="td text-ink-dim">{a.detail ?? ""}</td></tr>
               ))}</tbody>
             </table>
