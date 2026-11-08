@@ -61,27 +61,33 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
   );
 }
 
-export function CodeBlock({ code, className = "", highlightLines = [], wrap = false, noGutter = false }: {
-  code: string; className?: string; highlightLines?: number[]; wrap?: boolean; noGutter?: boolean;
+// A snippet line carries its TRUE source line number (`n`) and whether it is part
+// of the matched span (`hit`). When `sourceLines` is given the gutter shows real
+// source numbers; otherwise CodeBlock falls back to numbering a plain string 1..N.
+export type SnippetLine = { n: number; text: string; hit?: boolean };
+
+export function CodeBlock({ code, sourceLines, className = "", highlightLines = [], wrap = false, noGutter = false }: {
+  code?: string; sourceLines?: SnippetLine[]; className?: string; highlightLines?: number[]; wrap?: boolean; noGutter?: boolean;
 }) {
-  const lines = code.split("\n");
-  const hl = new Set(highlightLines);
+  const rows: SnippetLine[] = sourceLines && sourceLines.length
+    ? sourceLines
+    : (code ?? "").split("\n").map((text, i) => ({ n: i + 1, text, hit: highlightLines.includes(i + 1) }));
+  // Keep the gutter width in step with the largest line number.
+  const gw = Math.max(2, String(rows.length ? rows[rows.length - 1].n : 1).length);
   return (
     <pre className={`well mono overflow-auto p-0 text-ink ${className}`}>
       <code className="block">
-        {lines.map((ln, i) => {
-          const n = i + 1;
-          return (
-            <div key={n} className={`flex ${hl.has(n) ? "bg-bad/10" : ""}`}>
-              {!noGutter && (
-                <span className="select-none text-right pr-3 pl-2 text-ink-faint w-10 shrink-0 border-r border-line/60">
-                  {n}
-                </span>
-              )}
-              <span className={`pl-3 pr-4 ${wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"} ${hl.has(n) ? "text-bad" : ""}`}>{ln || " "}</span>
-            </div>
-          );
-        })}
+        {rows.map((r, i) => (
+          <div key={i} className={`flex ${r.hit ? "bg-bad/10" : ""}`}>
+            {!noGutter && (
+              <span className="select-none text-right pr-3 pl-2 text-ink-faint shrink-0 border-r border-line/60"
+                style={{ minWidth: `${gw + 1.5}ch` }}>
+                {r.n}
+              </span>
+            )}
+            <span className={`pl-3 pr-4 ${wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"} ${r.hit ? "text-bad" : ""}`}>{r.text || " "}</span>
+          </div>
+        ))}
       </code>
     </pre>
   );

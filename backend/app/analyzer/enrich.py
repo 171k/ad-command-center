@@ -37,6 +37,31 @@ CWE_ENRICH: dict[str, dict[str, str]] = {
         "payload": "__import__('os').system('id')",
         "patch": "Remove the dynamic evaluation. Use ast.literal_eval for data, JSON.parse for JSON, or a fixed mapping of allowed operations.",
     },
+    "200": {  # Information exposure (e.g. secret shipped to the client)
+        "exploit": "Sensitive data (a signing secret, key or token) is placed where the client can read it, so any visitor recovers it from the HTML, props or bundle and reuses it, e.g. to forge authentication.",
+        "payload": "view-source / inspect __NEXT_DATA__ for the leaked secret",
+        "patch": "Keep secrets server-side only. Never return them from getServerSideProps/props, expose them via NEXT_PUBLIC_* or embed them in client code. Rotate anything already shipped.",
+    },
+    "321": {  # Hard-coded cryptographic key
+        "exploit": "The signing/encryption key is embedded in source or the client bundle, so anyone who reads it can forge valid signatures or tokens (e.g. mint an admin session) or decrypt protected data.",
+        "payload": "// recover the literal key, then: sign({role:'admin'}, KEY)",
+        "patch": "Load keys from the environment or a secret manager, never from source. Rotate any key that has shipped, and keep it server-side only (never in NEXT_PUBLIC_* or page props).",
+    },
+    "208": {  # Observable timing discrepancy (non-constant-time compare)
+        "exploit": "Comparing a secret/MAC with ==/=== returns as soon as a byte differs, leaking how many leading bytes matched; an attacker can recover the value byte-by-byte by measuring response time.",
+        "payload": "for b in range(256): measure_time(sig_with_guessed_byte(b))",
+        "patch": "Compare with a constant-time function (crypto.timingSafeEqual / hmac.compare_digest) on equal-length buffers; reject on any length mismatch first.",
+    },
+    "285": {  # Improper authorization (trusting a client role claim)
+        "exploit": "The role or privilege is taken from client-controlled input, so an attacker simply sets role=admin (in the body, query or a self-minted token) to gain elevated access.",
+        "payload": 'POST /api/token  {"username":"x","role":"admin"}',
+        "patch": "Derive authorization from a server-verified session/identity, never from request data. Mint tokens server-side and check permissions against trusted state on every protected action.",
+    },
+    "1286": {  # Improper validation of syntactic correctness (dup-param type confusion)
+        "exploit": "A repeated query key (?x=a&x=b) is parsed into an array, so code written for a string receives an array; this defeats string-only validation (e.g. a path check) and enables traversal or logic bypass.",
+        "payload": "?file=ok.txt&file=../../flag",
+        "patch": "Reject non-string parameters (typeof x !== 'string') or normalise explicitly, and run validation on the same representation the sink consumes.",
+    },
     "22": {  # Path Traversal
         "exploit": "Directory traversal sequences in a filename let the attacker step outside the intended folder and read or write arbitrary files.",
         "payload": "../../../../etc/passwd",
@@ -112,7 +137,55 @@ CWE_ENRICH: dict[str, dict[str, str]] = {
 # Map common aliases to a canonical entry above.
 _ALIAS = {"77": "78", "89": "89", "96": "94", "915": "502", "1333": "20"}
 
+# Plain-English name per CWE, so a finding says "Path Traversal" not just "CWE-22".
+CWE_NAMES: dict[str, str] = {
+    "20": "Improper Input Validation", "22": "Path Traversal",
+    "73": "External Control of File Path", "77": "Command Injection",
+    "78": "OS Command Injection", "79": "Cross-Site Scripting (XSS)",
+    "89": "SQL Injection", "90": "LDAP Injection", "94": "Code Injection",
+    "95": "Code Injection (eval)", "96": "Server-Side Template Injection (SSTI)",
+    "200": "Information Exposure", "287": "Improper Authentication",
+    "295": "Improper Certificate Validation", "312": "Cleartext Storage of Sensitive Data",
+    "319": "Cleartext Transmission", "326": "Inadequate Encryption Strength",
+    "327": "Use of a Broken/Weak Crypto Algorithm", "328": "Use of a Weak Hash",
+    "338": "Weak Randomness (predictable)", "347": "Improper Verification of Signature",
+    "352": "Cross-Site Request Forgery (CSRF)", "400": "Uncontrolled Resource Consumption (DoS)",
+    "434": "Unrestricted File Upload", "476": "NULL Pointer Dereference",
+    "502": "Insecure Deserialization", "522": "Insufficiently Protected Credentials",
+    "601": "Open Redirect", "611": "XML External Entity (XXE)", "643": "XPath Injection",
+    "697": "Incorrect Comparison (type juggling)", "798": "Hardcoded Credentials",
+    "862": "Missing Authorization", "863": "Incorrect Authorization",
+    "918": "Server-Side Request Forgery (SSRF)", "1004": "Sensitive Cookie without HttpOnly",
+    "1321": "Prototype Pollution", "1333": "Inefficient Regex (ReDoS)",
+    "1336": "Server-Side Template Injection (SSTI)",
+    "208": "Observable Timing Discrepancy", "285": "Improper Authorization",
+    "321": "Hard-coded Cryptographic Key",
+    "1286": "Improper Input Validation (type confusion)",
+}
+
 _CWE_NUM = re.compile(r"CWE[-_ ]?(\d+)", re.I)
+_CVE_RE = re.compile(r"CVE-\d{4}-\d{3,7}", re.I)
+
+
+def cwe_name(cwe: str | None) -> str | None:
+    num = cwe_number(cwe)
+    return CWE_NAMES.get(_ALIAS.get(num, num)) if num else None
+
+
+def cwe_fix_url(cwe: str | None) -> str | None:
+    """A reliable 'how to fix / learn more' link: the CWE page has mitigations."""
+    num = cwe_number(cwe)
+    return f"https://cwe.mitre.org/data/definitions/{num}.html" if num else None
+
+
+def find_cves(*texts: str) -> list[dict]:
+    """Extract CVE ids from text and link each to its NVD detail page."""
+    seen: dict[str, dict] = {}
+    for t in texts:
+        for m in _CVE_RE.findall(t or ""):
+            cid = m.upper()
+            seen.setdefault(cid, {"id": cid, "url": f"https://nvd.nist.gov/vuln/detail/{cid}"})
+    return list(seen.values())
 
 
 def cwe_number(cwe: str | None) -> str | None:

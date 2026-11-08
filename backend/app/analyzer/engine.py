@@ -23,7 +23,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .enrich import cwe_number, enrich_for_cwe
+from .enrich import cwe_fix_url, cwe_name, cwe_number, enrich_for_cwe, find_cves
 from .rules import LANG_ALIASES, TAINT_SOURCES, Rule, rules_for_language
 
 WINDOW = 3  # lines above/below a sink to look for a taint source
@@ -68,6 +68,37 @@ def _snippet(lines: list[str], line_no: int, span: int = 2) -> list[dict]:
     ]
 
 
+# Semgrep can withhold the matched source text, returning this literal placeholder
+# in `extra.lines` (seen on offline/registry-gated runs). Never display it.
+SEMGREP_PLACEHOLDER = "requires login"
+
+
+def snippet_from_source(
+    source_lines: list[str], start_line: int, end_line: int, context: int = 5
+) -> tuple[list[dict], str | None]:
+    """Slice an evidence snippet straight from the real source.
+
+    Returns (snippet, error). `snippet` is a list of {n, text, hit} where `n` is
+    the TRUE 1-based source line number and `hit` marks the matched span
+    [start_line, end_line]. We never trust a tool's own `lines` field: we re-read
+    the source so line numbers, context and highlighting are always accurate.
+
+    If the reported location cannot be resolved against the source, we return an
+    explicit error instead of fabricating a line-1 snippet.
+    """
+    n = len(source_lines)
+    if not source_lines or start_line < 1 or start_line > n:
+        return [], f"Source location {start_line} is outside the file (1-{n})."
+    end_line = max(start_line, min(end_line or start_line, n))
+    lo = max(1, start_line - context)
+    hi = min(n, end_line + context)
+    snippet = [
+        {"n": i, "text": source_lines[i - 1], "hit": start_line <= i <= end_line}
+        for i in range(lo, hi + 1)
+    ]
+    return snippet, None
+
+
 def _taint_near(code_lines: list[str], line_no: int, sources: list[re.Pattern]) -> str | None:
     lo = max(0, line_no - 1 - WINDOW)
     hi = min(len(code_lines), line_no + WINDOW)
@@ -102,14 +133,17 @@ def _match_rule(rule: Rule, code: str, code_lines: list[str], sources: list[re.P
         findings.append(
             {
                 "rule_id": rule.id,
+                "rule_source": f"builtin:{rule.id}",
                 "name": rule.name,
                 "cwe": rule.cwe,
                 "language": lang,
                 "line": line_no,
+                "end_line": line_no,
                 "matched_text": m.group(0).strip()[:300],
                 "confidence": confidence,
                 "confidence_label": CONF_LABEL[confidence],
-                "snippet": _snippet(code_lines, line_no),
+                "snippet": _snippet(code_lines, line_no, span=5),
+                "snippet_error": None,
                 "description": rule.description,
                 "why_dangerous": rule.why,
                 "preconditions": rule.preconditions,
@@ -125,6 +159,13 @@ def _match_rule(rule: Rule, code: str, code_lines: list[str], sources: list[re.P
             }
         )
     return findings
+
+
+def _add_display_fields(f: dict) -> None:
+    """Human vuln name + a 'how to fix' link (CWE page) + any CVE links."""
+    f["vuln_name"] = cwe_name(f.get("cwe")) or f.get("name")
+    f["fix_url"] = cwe_fix_url(f.get("cwe"))
+    f["cves"] = find_cves(f.get("name", ""), f.get("description", ""), *(f.get("references") or []))
 
 
 def analyze(code: str, language: str | None = None, use_semgrep: bool = True) -> dict:
@@ -153,6 +194,8 @@ def analyze(code: str, language: str | None = None, use_semgrep: bool = True) ->
         semgrep_note = "Semgrep not installed; used built-in rules only."
 
     findings.sort(key=lambda f: (-CONF_ORDER.get(f["confidence"], 0), f["line"]))
+    for f in findings:
+        _add_display_fields(f)
 
     categories = {c: 0 for c in CONF_LABEL}
     for f in findings:
@@ -206,7 +249,8 @@ def _run_semgrep(code: str, language: str) -> tuple[list[dict], str]:
             src = Path(td) / f"snippet{ext}"
             src.write_text(code, encoding="utf-8")
             cmd = ["semgrep", "--json", "--quiet", "--timeout", "15",
-                   "--metrics=off", "--config", str(rules_dir), str(src)]
+                   "--metrics=off", "--no-git-ignore",
+                   "--config", str(rules_dir), str(src)]
             # Force fully offline: no registry version check, no metrics upload.
             env = {**os.environ, "SEMGREP_ENABLE_VERSION_CHECK": "0",
                    "SEMGREP_SEND_METRICS": "off"}
@@ -214,6 +258,7 @@ def _run_semgrep(code: str, language: str) -> tuple[list[dict], str]:
             if proc.returncode not in (0, 1):
                 return [], f"Semgrep exited {proc.returncode}: {proc.stderr[:200]}"
             data = json.loads(proc.stdout or "{}")
+            src_lines = code.split("\n")
             out = []
             for r in data.get("results", []):
                 extra = r.get("extra", {})
@@ -222,22 +267,36 @@ def _run_semgrep(code: str, language: str) -> tuple[list[dict], str]:
                 cwe = cwe_list[0] if cwe_list else ""
                 enr = enrich_for_cwe(cwe) or {}
                 conf = _SEV_CONF.get((extra.get("severity") or "WARNING").upper(), "potential")
-                line = r.get("start", {}).get("line", 0)
-                matched = (extra.get("lines", "") or "").strip("\n")
+                start = r.get("start", {})
+                end = r.get("end", {})
+                line = start.get("line", 0)
+                end_line = end.get("line", line)
+                # Slice evidence from the real source, never from extra.lines.
+                snippet, snip_err = snippet_from_source(src_lines, line, end_line)
+                raw = (extra.get("lines", "") or "").strip("\n")
+                matched = "" if raw == SEMGREP_PLACEHOLDER else raw
+                if not matched and snippet:
+                    hit = [s["text"] for s in snippet if s["hit"]]
+                    matched = "\n".join(hit)
                 owasp = meta.get("owasp", []) or []
+                check_id = str(r.get("check_id", "semgrep"))
                 msg = extra.get("message", "Semgrep finding")
                 out.append(
                     {
-                        "rule_id": str(r.get("check_id", "semgrep")).split(".")[-1],
+                        "rule_id": check_id.split(".")[-1],
+                        "rule_source": check_id,
                         "name": msg[:140],
                         "cwe": cwe,
                         "language": language,
                         "line": line,
+                        "end_line": end_line,
+                        "start_col": start.get("col"),
+                        "end_col": end.get("col"),
                         "matched_text": matched[:300],
                         "confidence": conf,
                         "confidence_label": CONF_LABEL[conf],
-                        "snippet": [{"line": line, "text": ln, "hit": True}
-                                    for ln in matched.split("\n")] if matched else [],
+                        "snippet": snippet,
+                        "snippet_error": snip_err,
                         "description": msg,
                         "why_dangerous": enr.get("exploit", "") or meta.get("exploit", ""),
                         "preconditions": "",
