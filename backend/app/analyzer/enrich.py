@@ -37,6 +37,31 @@ CWE_ENRICH: dict[str, dict[str, str]] = {
         "payload": "__import__('os').system('id')",
         "patch": "Remove the dynamic evaluation. Use ast.literal_eval for data, JSON.parse for JSON, or a fixed mapping of allowed operations.",
     },
+    "200": {  # Information exposure (e.g. secret shipped to the client)
+        "exploit": "Sensitive data (a signing secret, key or token) is placed where the client can read it, so any visitor recovers it from the HTML, props or bundle and reuses it, e.g. to forge authentication.",
+        "payload": "view-source / inspect __NEXT_DATA__ for the leaked secret",
+        "patch": "Keep secrets server-side only. Never return them from getServerSideProps/props, expose them via NEXT_PUBLIC_* or embed them in client code. Rotate anything already shipped.",
+    },
+    "321": {  # Hard-coded cryptographic key
+        "exploit": "The signing/encryption key is embedded in source or the client bundle, so anyone who reads it can forge valid signatures or tokens (e.g. mint an admin session) or decrypt protected data.",
+        "payload": "// recover the literal key, then: sign({role:'admin'}, KEY)",
+        "patch": "Load keys from the environment or a secret manager, never from source. Rotate any key that has shipped, and keep it server-side only (never in NEXT_PUBLIC_* or page props).",
+    },
+    "208": {  # Observable timing discrepancy (non-constant-time compare)
+        "exploit": "Comparing a secret/MAC with ==/=== returns as soon as a byte differs, leaking how many leading bytes matched; an attacker can recover the value byte-by-byte by measuring response time.",
+        "payload": "for b in range(256): measure_time(sig_with_guessed_byte(b))",
+        "patch": "Compare with a constant-time function (crypto.timingSafeEqual / hmac.compare_digest) on equal-length buffers; reject on any length mismatch first.",
+    },
+    "285": {  # Improper authorization (trusting a client role claim)
+        "exploit": "The role or privilege is taken from client-controlled input, so an attacker simply sets role=admin (in the body, query or a self-minted token) to gain elevated access.",
+        "payload": 'POST /api/token  {"username":"x","role":"admin"}',
+        "patch": "Derive authorization from a server-verified session/identity, never from request data. Mint tokens server-side and check permissions against trusted state on every protected action.",
+    },
+    "1286": {  # Improper validation of syntactic correctness (dup-param type confusion)
+        "exploit": "A repeated query key (?x=a&x=b) is parsed into an array, so code written for a string receives an array; this defeats string-only validation (e.g. a path check) and enables traversal or logic bypass.",
+        "payload": "?file=ok.txt&file=../../flag",
+        "patch": "Reject non-string parameters (typeof x !== 'string') or normalise explicitly, and run validation on the same representation the sink consumes.",
+    },
     "22": {  # Path Traversal
         "exploit": "Directory traversal sequences in a filename let the attacker step outside the intended folder and read or write arbitrary files.",
         "payload": "../../../../etc/passwd",
@@ -133,6 +158,9 @@ CWE_NAMES: dict[str, str] = {
     "918": "Server-Side Request Forgery (SSRF)", "1004": "Sensitive Cookie without HttpOnly",
     "1321": "Prototype Pollution", "1333": "Inefficient Regex (ReDoS)",
     "1336": "Server-Side Template Injection (SSTI)",
+    "208": "Observable Timing Discrepancy", "285": "Improper Authorization",
+    "321": "Hard-coded Cryptographic Key",
+    "1286": "Improper Input Validation (type confusion)",
 }
 
 _CWE_NUM = re.compile(r"CWE[-_ ]?(\d+)", re.I)

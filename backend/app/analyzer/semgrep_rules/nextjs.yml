@@ -1,0 +1,160 @@
+rules:
+  # ---- Path traversal: request input reaches a filesystem / path sink ----
+  # Taint mode follows the value through intermediate variables, the helper
+  # call and the string-vs-array normalisation the duplicate-parameter bug
+  # relies on. Sanitizers model the two statically-verifiable safe idioms:
+  # stripping to a basename, and a canonical path.relative() containment check.
+  - id: adcc-js-req-input-to-fs-path
+    languages: [javascript, typescript]
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern: req.query
+      - pattern: req.query.$F
+      - pattern: req.params
+      - pattern: req.params.$F
+      - pattern: req.body
+      - pattern: req.body.$F
+    pattern-sanitizers:
+      # basename() removes every directory component -> cannot traverse.
+      - pattern: path.basename(...)
+      # Canonical-containment idiom: once a value is reduced with
+      # path.relative(base, full) for a boundary check, treat it as validated.
+      - by-side-effect: true
+        patterns:
+          - pattern: $FULL
+          - pattern-inside: |
+              $REL = path.relative($BASE, $FULL);
+              ...
+      # Explicit string-type guard defeats the duplicate-parameter array case.
+      - by-side-effect: true
+        patterns:
+          - pattern: $V
+          - pattern-inside: |
+              if (typeof $V !== "string") { ... }
+              ...
+    pattern-sinks:
+      - patterns:
+          - pattern: fs.$M(...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(readFile|readFileSync|createReadStream|writeFile|writeFileSync|appendFile|appendFileSync|unlink|unlinkSync|readdir|readdirSync|stat|open|openSync)$
+      - pattern: path.join(...)
+      - pattern: path.resolve(...)
+    message: >-
+      Request-controlled input reaches a filesystem path/read without a verified
+      canonical-containment check. If the parameter can be repeated
+      (?file=a&file=b) it may arrive as an array, so string-only validation is
+      bypassed (type confusion). An attacker can supply ../ sequences to read
+      files outside the intended directory (path traversal) and disclose
+      protected files. Resolve the path and verify it stays under the base
+      directory with path.relative, or reduce it to path.basename.
+    metadata:
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      references: ["https://cwe.mitre.org/data/definitions/22.html"]
+
+  # ---- Hardcoded HMAC / signing secret (literal, or const-propagated) ----
+  - id: adcc-js-hardcoded-hmac-secret
+    languages: [javascript, typescript]
+    severity: ERROR
+    patterns:
+      - pattern: crypto.createHmac($ALGO, "...")
+    message: >-
+      An HMAC signing key is a hardcoded string (directly or via a constant).
+      Anyone with source or bundle access recovers it and can forge valid
+      signatures, e.g. an elevated auth token. Load signing keys from the
+      environment / a secret store and rotate any key that has shipped.
+    metadata:
+      cwe: ["CWE-321: Use of Hard-coded Cryptographic Key"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      references: ["https://cwe.mitre.org/data/definitions/321.html"]
+
+  # ---- Non-constant-time comparison of a signature/MAC ----
+  - id: adcc-js-non-constant-time-mac-compare
+    languages: [javascript, typescript]
+    severity: WARNING
+    patterns:
+      - pattern-either:
+          - pattern: $MAC == $X
+          - pattern: $MAC === $X
+          - pattern: $MAC != $X
+          - pattern: $MAC !== $X
+      - metavariable-regex:
+          metavariable: $MAC
+          regex: (?i).*(mac|hmac|sig|signature|digest|expected).*
+    message: >-
+      A signature/MAC is compared with ==/=== which short-circuits on the first
+      differing byte and leaks timing. Combined with a recoverable signing key
+      this helps forge valid tokens. Use crypto.timingSafeEqual on equal-length
+      buffers.
+    metadata:
+      cwe: ["CWE-208: Observable Timing Discrepancy"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      references: ["https://cwe.mitre.org/data/definitions/208.html"]
+
+  # ---- Secret serialised into client-visible props (Next.js) ----
+  - id: adcc-js-secret-in-server-props
+    languages: [javascript, typescript]
+    severity: ERROR
+    patterns:
+      - pattern-inside: |
+          function getServerSideProps(...) { ... }
+      - pattern-either:
+          - pattern: 'return { props: { ..., $K: $SECRET, ... } }'
+          - pattern: 'return { props: { $K: $SECRET } }'
+      - metavariable-regex:
+          metavariable: $K
+          regex: (?i).*(secret|signing|password|private.?key|api.?key|token|credential).*
+    message: >-
+      A secret-looking value is returned from getServerSideProps and is therefore
+      serialised into the HTML/props delivered to every client. Keep signing
+      secrets and keys server-side; never place them in page props.
+    metadata:
+      cwe: ["CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      references: ["https://cwe.mitre.org/data/definitions/200.html"]
+
+  # ---- Public (client-exposed) env var holding a secret ----
+  - id: adcc-js-next-public-secret-env
+    languages: [javascript, typescript]
+    severity: WARNING
+    patterns:
+      - pattern-regex: NEXT_PUBLIC_[A-Z0-9_]*(SECRET|KEY|TOKEN|PASSWORD|PRIVATE)
+    message: >-
+      A NEXT_PUBLIC_* environment variable names a secret. Next.js inlines
+      NEXT_PUBLIC_* values into the client bundle, so this value is exposed to
+      every visitor. Use a non-public env var and read it only on the server.
+    metadata:
+      cwe: ["CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      references: ["https://cwe.mitre.org/data/definitions/200.html"]
+
+  # ---- Authorization decision from a client-supplied role claim ----
+  - id: adcc-js-trust-client-role
+    languages: [javascript, typescript]
+    severity: WARNING
+    patterns:
+      - pattern-either:
+          - pattern: req.body.role
+          - pattern: req.query.role
+          - pattern: req.body.isAdmin
+          - pattern: req.query.isAdmin
+          - patterns:
+              - pattern-either:
+                  - pattern: const { ..., $R, ... } = req.body
+                  - pattern: const { ..., $R, ... } = req.body || ...
+                  - pattern: const { ..., $R, ... } = req.query
+                  - pattern: const { ..., $R, ... } = req.query || ...
+              - metavariable-regex:
+                  metavariable: $R
+                  regex: ^(role|isAdmin|is_admin|admin|priv|privilege|privileges)$
+    message: >-
+      A role / privilege flag is taken directly from client-controlled request
+      data. Authorization must be derived from a server-verified identity, never
+      from a value the client can set. Mint tokens server-side from the
+      authenticated session, not from a role supplied in the request.
+    metadata:
+      cwe: ["CWE-285: Improper Authorization"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      references: ["https://cwe.mitre.org/data/definitions/285.html"]

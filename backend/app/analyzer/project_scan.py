@@ -117,8 +117,9 @@ def _semgrep_configs() -> list[str]:
 
 
 def _run_semgrep_cmd(root: Path, configs: list[str]) -> tuple[int, str]:
-    cmd = ["semgrep", "--json", "--quiet", "--metrics=off", "--timeout", "10",
-           "--timeout-threshold", "3", "--max-target-bytes", "1500000", "--jobs", "2"]
+    cmd = ["semgrep", "--json", "--quiet", "--metrics=off", "--no-git-ignore",
+           "--timeout", "10", "--timeout-threshold", "3",
+           "--max-target-bytes", "1500000", "--jobs", "2"]
     for cfg in configs:
         cmd += ["--config", cfg]
     for d in SKIP_DIRS:
@@ -153,9 +154,11 @@ def _semgrep_dir(root: Path) -> dict[str, list[dict]]:
     except json.JSONDecodeError:
         return {}
     out: dict[str, list[dict]] = {}
+    src_cache: dict[str, list[str]] = {}
     seen: set = set()  # (rel, line, cwe# or rule_id) -> collapse duplicate rules
     for r in data.get("results", []):
-        rel = os.path.relpath(r.get("path", ""), str(root)).replace("\\", "/")
+        path = r.get("path", "")
+        rel = os.path.relpath(path, str(root)).replace("\\", "/")
         extra = r.get("extra", {})
         meta = extra.get("metadata", {})
         cwe_list = meta.get("cwe", []) or []
@@ -164,26 +167,45 @@ def _semgrep_dir(root: Path) -> dict[str, list[dict]]:
         num = cwe_number(cwe_raw)
         cwe = f"CWE-{num}" if num else cwe_raw  # short form for the badge
         conf = _SEV_CONF.get((extra.get("severity") or "WARNING").upper(), "potential")
-        line = r.get("start", {}).get("line", 0)
-        rule_id = str(r.get("check_id", "semgrep")).split(".")[-1]
+        start = r.get("start", {})
+        end = r.get("end", {})
+        line = start.get("line", 0)
+        end_line = end.get("line", line)
+        check_id = str(r.get("check_id", "semgrep"))
+        rule_id = check_id.split(".")[-1]
         # Collapse duplicate rules firing on the same line for the same CWE
         # (our rule + several community rules often overlap).
         key = (rel, line, cwe_number(cwe) or rule_id)
         if key in seen:
             continue
         seen.add(key)
-        matched = (extra.get("lines", "") or "").strip("\n")
+        # Slice evidence from the real extracted source, never from extra.lines
+        # (Semgrep can return the "requires login" placeholder there).
+        if rel not in src_cache:
+            try:
+                src_cache[rel] = Path(path).read_text(
+                    encoding="utf-8", errors="replace").split("\n")
+            except OSError:
+                src_cache[rel] = []
+        snippet, snip_err = engine.snippet_from_source(src_cache[rel], line, end_line)
+        raw = (extra.get("lines", "") or "").strip("\n")
+        matched = "" if raw == engine.SEMGREP_PLACEHOLDER else raw
         owasp = meta.get("owasp", []) or []
         msg = extra.get("message", "Semgrep finding")
         out.setdefault(rel, []).append({
             "rule_id": rule_id,
+            "rule_source": check_id,
             "name": msg[:140],
             "cwe": cwe,
             "line": line,
+            "end_line": end_line,
+            "start_col": start.get("col"),
+            "end_col": end.get("col"),
+            "matched_text": (matched or "\n".join(s["text"] for s in snippet if s["hit"]))[:300],
             "confidence": conf,
             "confidence_label": engine.CONF_LABEL[conf],
-            "snippet": [{"line": line, "text": ln, "hit": True} for ln in matched.split("\n")]
-            if matched else [],
+            "snippet": snippet,
+            "snippet_error": snip_err,
             "description": msg,
             "why_dangerous": enr.get("exploit", "") or meta.get("exploit", ""),
             "preconditions": "", "taint_evidence": None, "test_procedure": "",

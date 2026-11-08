@@ -207,17 +207,15 @@ function Finding({ f, file }: { f: any; file?: string }) {
         <span className="ml-auto flex items-center gap-2 text-2xs text-ink-faint">
           {f.engine && <Badge className="border-line-strong text-ink-faint uppercase">{f.engine}</Badge>}
           {f.cwe && <span className="mono">{f.cwe}</span>}
-          <span>line {f.line}</span>
+          <span>{f.end_line && f.end_line !== f.line ? `lines ${f.line}-${f.end_line}` : `line ${f.line}`}</span>
         </span>
       </button>
       {open && (
         <div className="px-3 pb-3 space-y-3 border-t border-line pt-3">
-          {f.snippet?.length > 0 && (
-            <CodeBlock
-              code={f.snippet.map((s: any) => s.text).join("\n")}
-              highlightLines={f.snippet.reduce((acc: number[], s: any, idx: number) => (s.hit ? [...acc, idx + 1] : acc), [])}
-            />
-          )}
+          {file && <div className="text-2xs text-ink-faint mono flex items-center gap-1"><FileCode2 className="h-3 w-3" />{file}:{f.line}</div>}
+          {f.snippet_error
+            ? <p className="text-xs text-warn bg-warn/10 border border-warn/30 rounded px-2.5 py-2">Source location could not be resolved: {f.snippet_error}</p>
+            : f.snippet?.length > 0 && <CodeBlock sourceLines={f.snippet} />}
           <Info label="What it is" text={f.description} />
           {f.why_dangerous && <Info label="Possible exploit" text={f.why_dangerous} />}
           {f.preconditions && <Info label="Preconditions" text={f.preconditions} />}
@@ -229,6 +227,7 @@ function Finding({ f, file }: { f: any; file?: string }) {
             {f.remediation && <Labeled label="How to patch"><SmartBlock text={f.remediation} /></Labeled>}
           </div>
           {f.why_patch_works && <Info label="Why the patch works" text={f.why_patch_works} />}
+          {f.rule_source && <div className="text-2xs text-ink-faint">Detected by <span className="mono">{f.rule_source}</span></div>}
           {snippetText && <button className="btn btn-sm" disabled={saveAsPatch.isPending} onClick={() => saveAsPatch.mutate()}><GitCompare className="h-3.5 w-3.5" />Save as patch</button>}
           {f.regression_test && <Labeled label="Regression test"><CodeBlock code={f.regression_test} className="max-h-40" /></Labeled>}
           {f.limitations && <Info label="Limitations of this analysis" text={f.limitations} />}
