@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload, FolderArchive, Trash2, GitCompare } from "lucide-react";
+import { Play, Save, BookOpen, FileCode2, ChevronDown, ChevronRight, Upload, FolderArchive, Trash2, GitCompare, Share2, Package } from "lucide-react";
 import { get, post, upload, del } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
@@ -378,6 +378,8 @@ function ProjectScan() {
             {!res.semgrep_ran && <p className="text-2xs text-ink-faint mt-2">Semgrep not available on this server; built-in rules only.</p>}
             {res.semgrep_ran && res.community_rules && <p className="text-2xs text-ink-faint mt-2">Scanned with the built-in rules plus the full Semgrep community ruleset.</p>}
           </Panel>
+          {(res.related || []).length > 0 && <RelatedFindings groups={res.related} />}
+          {res.cve && (res.cve.findings?.length > 0 || res.cve.inventory_count > 0) && <CveFindings cve={res.cve} />}
           {res.files.length === 0
             ? <EmptyState title="No findings" hint="No curated or Semgrep pattern fired across the project. This does not prove it is secure." />
             : res.files.map((fe: any) => <ProjectFile key={fe.path} fe={fe} sev={sev} />)}
@@ -409,6 +411,97 @@ function ProjectScan() {
         </Panel>
       )}
     </div>
+  );
+}
+
+const SEV_CLS: Record<string, string> = {
+  critical: "border-bad/50 text-bad bg-bad/10", high: "border-bad/40 text-bad bg-bad/5",
+  medium: "border-warn/40 text-warn bg-warn/10", low: "border-line-strong text-ink-dim",
+  unknown: "border-line-strong text-ink-faint",
+};
+
+function CveFindings({ cve }: { cve: any }) {
+  const [open, setOpen] = useState(true);
+  const findings = cve.findings || [];
+  return (
+    <Panel bodyClass="p-0">
+      <button className="w-full px-3 h-11 flex items-center gap-2 text-left" onClick={() => setOpen(!open)}>
+        {open ? <ChevronDown className="h-4 w-4 text-ink-faint" /> : <ChevronRight className="h-4 w-4 text-ink-faint" />}
+        <Package className="h-4 w-4 text-accent" />
+        <span className="text-sm font-medium">Known CVEs (dependencies and runtime)</span>
+        <span className="ml-auto flex items-center gap-2 text-2xs text-ink-faint">
+          <span>{cve.inventory_count} component(s){cve.ecosystems?.length ? ` · ${cve.ecosystems.join(", ")}` : ""}</span>
+          {findings.length > 0 && <Badge className="border-bad/40 text-bad bg-bad/10">{findings.length} CVE(s)</Badge>}
+        </span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2 border-t border-line pt-3">
+          {findings.length === 0 ? (
+            <p className="text-sm text-ink-faint">No known-vulnerable versions matched the loaded advisories. This is not proof the dependencies are safe.</p>
+          ) : findings.map((f: any, i: number) => (
+            <div key={i} className="well rounded-md p-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className={SEV_CLS[f.severity] || SEV_CLS.unknown}>{f.severity}</Badge>
+                <a href={f.references?.[0] || `https://nvd.nist.gov/vuln/detail/${f.cve}`} target="_blank" rel="noreferrer" className="text-bad hover:underline mono text-sm">{f.cve}</a>
+                <span className="mono text-xs text-ink">{f.component}@{f.installed_version}</span>
+                {f.fixed_version && <span className="text-2xs text-ink-faint">→ fixed in {f.fixed_version}</span>}
+                <Badge className="border-line-strong text-ink-faint ml-auto">{f.confidence}</Badge>
+              </div>
+              {f.summary && <p className="text-xs text-ink-dim mt-1">{f.summary}</p>}
+              <div className="text-2xs text-ink-faint mt-1 flex flex-wrap gap-x-3">
+                <span className="mono">{f.source_file}</span>
+                <span>{f.remediation}</span>
+                {f.note && <span className="text-warn">{f.note}</span>}
+              </div>
+            </div>
+          ))}
+          {cve.limitations?.length > 0 && (
+            <details className="text-2xs text-ink-faint">
+              <summary className="cursor-pointer">Scope and limitations ({cve.advisory_count} advisories loaded)</summary>
+              <ul className="list-disc pl-5 mt-1 space-y-0.5">
+                {cve.limitations.map((l: string, i: number) => <li key={i}>{l}</li>)}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function RelatedFindings({ groups }: { groups: any[] }) {
+  return (
+    <Panel bodyClass="p-0">
+      <div className="px-3 h-11 flex items-center gap-2 border-b border-line">
+        <Share2 className="h-4 w-4 text-accent" />
+        <span className="text-sm font-medium">Related findings</span>
+        <span className="text-2xs text-ink-faint">evidence-linked, not a proven exploit chain</span>
+      </div>
+      <div className="p-3 space-y-3">
+        {groups.map((g: any) => (
+          <div key={g.id} className="well rounded-md p-3">
+            <p className="text-sm text-ink">{g.label}</p>
+            {g.evidence?.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {g.evidence.map((e: string, i: number) => (
+                  <Badge key={i} className="border-accent/40 text-accent bg-accent/10 mono">{e}</Badge>
+                ))}
+              </div>
+            )}
+            <ol className="mt-2 space-y-1">
+              {g.members.map((m: any, i: number) => (
+                <li key={i} className="text-xs flex items-center gap-2">
+                  <span className="text-ink-faint w-4 text-right">{i + 1}</span>
+                  <Badge className="border-line-strong text-ink-dim">{m.vuln_name}</Badge>
+                  <span className="mono text-ink-faint truncate">{m.path}:{m.line}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="text-2xs text-ink-faint mt-2">{g.note}</p>
+          </div>
+        ))}
+      </div>
+    </Panel>
   );
 }
 

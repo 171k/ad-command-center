@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 from .. import db
-from . import correlate, engine
+from . import correlate, cve, engine
 from .enrich import cwe_number, enrich_for_cwe
 
 # Bounds (generous: this runs during prep, not in the request path).
@@ -289,9 +289,20 @@ def analyze_tree(workdir: Path, files: list[str], progress=None) -> dict:
     except Exception:  # noqa: BLE001 - correlation must never fail a scan
         related = []
 
+    # Known-CVE scan of dependency manifests / runtime markers (distinct from the
+    # code-level CWE findings above). Walk the extracted tree for manifests.
+    try:
+        all_rels = [str(p.relative_to(workdir)).replace("\\", "/")
+                    for p in workdir.rglob("*") if p.is_file()]
+        cve_report = cve.scan_tree_for_cves(workdir, all_rels)
+    except Exception:  # noqa: BLE001 - CVE scan must never fail the code scan
+        cve_report = {"inventory_count": 0, "findings": [], "ecosystems": [],
+                      "advisory_count": 0, "limitations": ["CVE scan unavailable."]}
+
     return {
         "files": file_entries,
         "related": related,
+        "cve": cve_report,
         "totals": totals,
         "files_with_findings": len(file_entries),
         "files_scanned": len(files),
