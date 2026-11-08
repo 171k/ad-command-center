@@ -7,10 +7,11 @@ from ..config import Settings, get_settings
 
 router = APIRouter()
 _require = Depends(auth.require_session)
+_admin = Depends(auth.require_admin)
 
 
 @router.get("/config")
-async def get_config(s: Settings = Depends(get_settings), ctx=_require):
+async def get_config(s: Settings = Depends(get_settings), ctx=_admin):
     return {
         "app_name": s.app_name,
         "environment": s.environment,
@@ -31,7 +32,7 @@ async def get_config(s: Settings = Depends(get_settings), ctx=_require):
 
 
 @router.get("/audit")
-async def audit_log(limit: int = 100, ctx=_require):
+async def audit_log(limit: int = 100, ctx=_admin):
     rows = db.query("SELECT at, label, ip, action, detail FROM audit_log ORDER BY id DESC LIMIT ?",
                     (min(max(1, limit), 500),))
     return {"items": [dict(r) for r in rows]}

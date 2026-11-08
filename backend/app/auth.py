@@ -181,6 +181,7 @@ class SessionCtx:
         self.label = row.get("label")       # username, preserves attribution API
         self.username = row.get("label")
         self.ip = row.get("ip")
+        self.is_admin = bool(self.username and self.username.lower() in get_settings().admin_user_set)
 
 
 def _unauth() -> HTTPException:
@@ -201,3 +202,11 @@ async def require_session(request: Request, s: Settings = Depends(get_settings))
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF validation failed")
     touch_session(token, s)
     return SessionCtx(token, row)
+
+
+async def require_admin(ctx: SessionCtx = Depends(require_session)) -> SessionCtx:
+    """Admin-only endpoints (session management, audit log, feature gates)."""
+    if not ctx.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Admin access required.")
+    return ctx

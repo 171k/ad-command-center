@@ -72,9 +72,16 @@ class Settings(BaseSettings):
     enable_scheduled_jobs: bool = False
     enable_demo_data: bool = False
 
+    # Usernames with admin access (session management, audit log, feature gates).
+    admin_users: str = "itik"
+
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
+
+    @property
+    def admin_user_set(self) -> set[str]:
+        return {u.strip().lower() for u in self.admin_users.split(",") if u.strip()}
 
 
 @lru_cache

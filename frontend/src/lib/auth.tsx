@@ -5,6 +5,7 @@ type Status = {
   configured: boolean;
   authenticated: boolean;
   username: string | null;
+  is_admin: boolean;
   totp_enabled: boolean;
   users: string[];
   app_name: string;
@@ -14,6 +15,7 @@ type AuthCtx = {
   status: Status | null;
   loading: boolean;
   username: string | null;
+  isAdmin: boolean;
   refresh: () => Promise<void>;
   login: (username: string, password: string, totp?: string) => Promise<void>;
   setup: (password: string) => Promise<void>;
@@ -60,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ status, loading, username, refresh, login, setup, logout }}>
+    <Ctx.Provider value={{ status, loading, username, isAdmin: !!status?.is_admin, refresh, login, setup, logout }}>
       {children}
     </Ctx.Provider>
   );
