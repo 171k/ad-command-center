@@ -1,0 +1,31 @@
+# Overrides for running Tulip (OpenAttackDefenseTools/tulip) on the A&D
+# Command Center VM. Use alongside Tulip's own compose:
+#
+#   docker compose -f docker-compose.yml \
+#     -f /path/to/adcc/deploy/tulip/docker-compose.override.yml up -d --build
+#
+# Why: Tulip's upstream compose sets the TimescaleDB shared-memory to 128g,
+# which will not start on a small VM. This trims it and caps memory so Tulip
+# coexists with the Command Center.
+services:
+  timescale:
+    shm_size: "1g"            # upstream default is 128g — far too large here
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  assembler:
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  frontend:
+    restart: unless-stopped
+    # Keep the default published port 3000. The Command Center's Caddy proxies
+    # tulip.<domain> -> host.docker.internal:3000. Ensure the cloud firewall
+    # (Azure NSG / UFW) exposes only 80 and 443 publicly, so 3000 is reachable
+    # only from the host and the Caddy container, never the public internet.
+    ports:
+      - "3000:3000"

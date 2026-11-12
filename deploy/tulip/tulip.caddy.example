@@ -1,0 +1,30 @@
+# Tulip dashboard site — gated drop-in for the Command Center's Caddy.
+#
+# Activate by copying this into the caddy conf.d volume as `tulip.caddy`
+# (see deploy/tulip/README.md), after replacing the host and the basic-auth
+# hash. Caddy auto-obtains a TLS cert for this host once DNS points at the VM.
+#
+# Generate the password hash with Caddy's own tool (no extra install):
+#   docker compose exec web caddy hash-password --plaintext 'A-STRONG-PASSWORD'
+# Paste the printed $2a$... value after the username below.
+
+tulip.itikad.site {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# Second layer of protection: Tulip itself has NO auth and holds sensitive
+	# attack data. Keep this even though the cloud firewall should also block
+	# port 3000 from the public internet.
+	basic_auth {
+		team REPLACE_WITH_BCRYPT_HASH
+	}
+
+	# Tulip's frontend is published on the host (127.0.0.1-safe via the cloud
+	# firewall); Caddy reaches it through the host gateway.
+	reverse_proxy host.docker.internal:3000
+}

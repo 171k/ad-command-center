@@ -8,5 +8,8 @@ RUN npm run build
 
 FROM caddy:2.8-alpine
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
+# Drop-in site configs (mounted as a volume at runtime) are imported by the
+# Caddyfile; create the dir so the import glob is always valid.
+RUN mkdir -p /etc/caddy/conf.d
 COPY --from=build /web/dist /srv
 EXPOSE 80 443

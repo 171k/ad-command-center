@@ -1,0 +1,12 @@
+# Tulip service map — copy to Tulip's services/api/configurations.py and edit.
+# One entry per service the organisers give you to defend. The port is the
+# service's listening port on your vulnbox; the name is how it shows in the UI.
+# Apply changes during the game with:  docker compose up --build -d api
+
+vm_ip = "10.0.0.1"  # your team's vulnbox IP (match VM_IP in .env)
+
+services = [
+    {"ip": vm_ip, "port": 8080, "name": "web-service-1"},
+    {"ip": vm_ip, "port": 5555, "name": "service-2"},
+    # add the rest once the organisers publish the service list
+]
