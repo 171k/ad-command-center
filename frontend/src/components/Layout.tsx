@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Crosshair, Shield, Terminal, Radar, FileSearch, Settings as Cog,
-  LogOut, CircleDot, Package, Binary,
+  LogOut, CircleDot, Package, Binary, Flower2, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useLiveSync } from "../lib/sse";
@@ -90,6 +90,19 @@ export function Layout({ children }: { children: ReactNode }) {
               )}
             </NavLink>
           ))}
+
+          {/* External: Tulip traffic-analysis dashboard (separate service, opens in a new tab). */}
+          <a
+            href="/tulip"
+            target="_blank"
+            rel="noreferrer"
+            title="Tulip — traffic analysis (opens in a new tab)"
+            className="flex items-center gap-2.5 rounded px-2 py-1.5 text-sm text-ink-dim hover:bg-bg-hover hover:text-ink transition-colors"
+          >
+            <Flower2 className="h-4 w-4 shrink-0" />
+            <span className="hidden lg:inline">Tulip</span>
+            <ExternalLink className="h-3 w-3 ml-auto text-ink-faint hidden lg:inline" />
+          </a>
         </nav>
 
         <div className="border-t border-line p-2">
