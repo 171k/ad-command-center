@@ -22,8 +22,9 @@ tulip.itikad.site {
 	# Second layer of protection: Tulip itself has NO auth and holds sensitive
 	# attack data. Keep this even though the cloud firewall should also block
 	# port 3000 from the public internet.
+	# user: team — change with `caddy hash-password` and re-run setup if needed.
 	basic_auth {
-		team REPLACE_WITH_BCRYPT_HASH
+		team $2b$14$HpequczuQHcEebyr0iw1o.YEg9faaekSK2rcZ3c62m4.vgpKtHmmq
 	}
 
 	# Tulip's frontend is published on the host (127.0.0.1-safe via the cloud

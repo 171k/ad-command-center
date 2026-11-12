@@ -1,0 +1,12 @@
+# Destructive Farm (upstream has no compose). Dropped into the DF clone root by
+# deploy/destructive-farm/setup.sh. Port 5000 is published on the host but the
+# cloud firewall exposes only 80/443, so it is reachable only via the Command
+# Center's Caddy (which proxies df.itikad.site -> host.docker.internal:5000).
+# Destructive Farm authenticates itself (HTTP basic auth via SERVER_PASSWORD).
+services:
+  farm:
+    build: ./server
+    container_name: destructive-farm
+    restart: unless-stopped
+    ports:
+      - "5000:5000"

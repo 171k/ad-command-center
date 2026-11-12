@@ -1,0 +1,12 @@
+# Destructive Farm site — gated drop-in for the Command Center's Caddy.
+# Copied into the caddy conf.d volume by deploy/destructive-farm/setup.sh.
+# Destructive Farm handles its OWN login (HTTP basic auth via SERVER_PASSWORD),
+# so no Caddy basic_auth here — that would mean two prompts.
+df.itikad.site {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy host.docker.internal:5000
+}

@@ -77,15 +77,35 @@ export const GUIDES: Guide[] = [
   {
     id: "tulip",
     tool: "Tulip (OpenAttackDefenseTools)",
-    purpose: "A/D traffic browser. Optional integration: keep it on a separate collector, not the 4GB app VPS.",
-    platforms: "Docker",
+    purpose: "A/D traffic browser — ingests pcaps, reassembles flows, generates replay scripts. Hosted at tulip.itikad.site behind a login (user: team).",
+    platforms: "Docker · on the Command Center VM",
     steps: [
-      { label: "Clone", cmd: "git clone https://github.com/OpenAttackDefenseTools/tulip.git && cd tulip" },
-      { label: "Configure services/VM range", note: "Edit services and the tick/flag settings in the compose env per the repo README before starting." },
-      { label: "Start", cmd: "docker compose up -d" },
-      { label: "Deep-link from the SOC", note: "Tulip exposes no stable public API; the SOC links out to the Tulip UI by flow time/service. Use the file-based PCAP workflow to share the same captures." },
+      { label: "One-command setup — run on the iHack server over SSH", cmd: "cd ~/adcc-command-center && git pull && bash deploy/tulip/setup.sh", note: "Clones Tulip, applies the resource + toolchain fixes, starts it, and publishes https://tulip.itikad.site (user: team). Idempotent — safe to re-run." },
+      { label: "Open it", note: "Click Tulip in the sidebar or go to https://tulip.itikad.site. Login user is 'team'." },
+      { label: "Game day — set the real values", note: "Edit ~/tulip/.env (TICK_START, TICK_LENGTH, FLAG_REGEX, VM_IP, TEAM_ID) and the service list in ~/tulip/services/api/configurations.py, then rebuild the api: docker compose -f ~/tulip/docker-compose.yml -f ~/adcc-command-center/deploy/tulip/docker-compose.override.yml up -d --build api" },
+      { label: "Game day — feed it traffic", note: "On the vulnbox, capture with tcpdump and copy the pcaps into ~/tulip/<TRAFFIC_DIR_HOST>, or stream via PCAP-over-IP. The assembler picks them up automatically. See deploy/tulip/README.md." },
     ],
-    verify: "docker compose ps  # tulip-frontend reachable on its configured port",
-    troubleshoot: [{ problem: "Resource pressure", fix: "Run Tulip on the collector host; the SOC remains fully usable without it." }],
+    verify: "curl -sS -o /dev/null -w '%{http_code}\\n' https://tulip.itikad.site   # 401 = login required = working",
+    troubleshoot: [
+      { problem: "Blank page or 502", fix: "Tulip not up — re-run bash deploy/tulip/setup.sh, then check docker logs tulip-frontend-1 / tulip-api-1." },
+      { problem: "No flows showing", fix: "No traffic yet — feed pcaps into the traffic dir (game day); the bundled demo pcaps confirm the pipeline works." },
+    ],
+  },
+  {
+    id: "destructive-farm",
+    tool: "Destructive Farm",
+    purpose: "A/D exploit farm — runs your attack scripts against every opponent each tick and auto-submits flags. Hosted at df.itikad.site behind a login.",
+    platforms: "Docker · on the Command Center VM",
+    steps: [
+      { label: "One-command setup — run on the iHack server over SSH", cmd: "cd ~/adcc-command-center && git pull && bash deploy/destructive-farm/setup.sh", note: "Clones Destructive Farm, builds it (upstream has no Docker), starts it, and publishes https://df.itikad.site. Idempotent — safe to re-run." },
+      { label: "Open it", note: "Go to https://df.itikad.site and log in with any username and the farm password." },
+      { label: "Game day — configure the farm", note: "Edit ~/destructive-farm/server/config.py: TEAMS (name -> vulnbox IP), FLAG_FORMAT, SYSTEM_PROTOCOL + SYSTEM_HOST/PORT/TOKEN (the organiser's submitter), SUBMIT_FLAG_LIMIT, FLAG_LIFETIME. The server reloads config.py automatically." },
+      { label: "Add your sploits", note: "Register attack scripts in the UI; the farm runs each one against every team IP per tick and submits the flags they print." },
+    ],
+    verify: "curl -sS -o /dev/null -w '%{http_code}\\n' https://df.itikad.site   # 401 = login required = working",
+    troubleshoot: [
+      { problem: "Flags not submitted", fix: "SYSTEM_PROTOCOL must match a module in server/protocols/, and SYSTEM_HOST/PORT/TOKEN must be the organiser's submitter. Watch docker logs destructive-farm." },
+      { problem: "Reset before a round", fix: "cd ~/destructive-farm && rm -f server/flags.sqlite && docker compose restart farm" },
+    ],
   },
 ];
