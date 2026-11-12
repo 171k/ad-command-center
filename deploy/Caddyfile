@@ -6,6 +6,12 @@
 	admin off
 }
 
+# ---- Optional drop-in sites (e.g. the gated Tulip dashboard) ----
+# Files placed in the conf.d volume are imported here. The glob matches nothing
+# by default, so this is a no-op until a drop-in is added on the host; the main
+# site below is never affected. See deploy/tulip/README.md.
+import /etc/caddy/conf.d/*.caddy
+
 # ---- Canonical HTTPS site ----
 # Caddy auto-obtains/renews the cert for this host and auto-redirects its own
 # HTTP (port 80) traffic to HTTPS.

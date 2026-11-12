@@ -54,6 +54,11 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
+      # Drop-in sites (e.g. the gated Tulip dashboard) persist across deploys.
+      - caddy-confd:/etc/caddy/conf.d
+    # Lets a drop-in reverse_proxy reach a stack published on the host (Tulip).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
@@ -67,3 +72,4 @@ volumes:
   adcc-data:
   caddy-data:
   caddy-config:
+  caddy-confd:

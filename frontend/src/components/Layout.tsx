@@ -93,7 +93,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* External: Tulip traffic-analysis dashboard (separate service, opens in a new tab). */}
           <a
-            href="/tulip"
+            href="https://tulip.itikad.site"
             target="_blank"
             rel="noreferrer"
             title="Tulip — traffic analysis (opens in a new tab)"
