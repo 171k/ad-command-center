@@ -6,7 +6,9 @@
 #
 # Generate the password hash with Caddy's own tool (no extra install):
 #   docker compose exec web caddy hash-password --plaintext 'A-STRONG-PASSWORD'
-# Paste the printed $2a$... value after the username below.
+# Paste the printed $2a$... value after the username below. After copying this
+# into the conf.d volume, load it with `docker compose restart web` (the main
+# Caddyfile sets `admin off`, so `caddy reload` is not available).
 
 tulip.itikad.site {
 	encode zstd gzip

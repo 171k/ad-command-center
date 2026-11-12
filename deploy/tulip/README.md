@@ -55,16 +55,18 @@ Run these on the Command Center VM (`~/adcc-command-center` is the app checkout)
    # pick a strong shared password; this prints a $2a$... hash
    docker compose exec web caddy hash-password --plaintext 'YOUR-STRONG-PASSWORD'
 
-   # write the drop-in (replace the hash), then reload Caddy
+   # write the drop-in (replace the hash), then restart Caddy to load it.
+   # NOTE: the Caddyfile sets `admin off`, so `caddy reload` is unavailable —
+   # restart the web container instead (it re-reads the Caddyfile on start).
    cp deploy/tulip/tulip.caddy.example /tmp/tulip.caddy
    #   edit /tmp/tulip.caddy: paste the hash after "team", confirm the hostname
    docker compose cp /tmp/tulip.caddy web:/etc/caddy/conf.d/tulip.caddy
-   docker compose exec web caddy reload --config /etc/caddy/Caddyfile
+   docker compose restart web
    ```
    Visit **https://tulip.itikad.site** — you should get a basic-auth prompt, then
    the Tulip UI. The sidebar link now works for the whole team.
 
-   To take it down later: `docker compose exec web rm /etc/caddy/conf.d/tulip.caddy && docker compose exec web caddy reload --config /etc/caddy/Caddyfile`.
+   To take it down later: `docker compose exec web rm /etc/caddy/conf.d/tulip.caddy && docker compose restart web`.
 
 ## On game day
 
