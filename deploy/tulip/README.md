@@ -17,54 +17,42 @@ to it at **https://tulip.itikad.site** and proxies to it.
   it starts on this VM.
 - **`tulip.env.example`** / **`configurations.py.example`** — config templates.
 
-## What you do once (host-side; ~10 min) — can be done now
+## Setup — one command
 
-Run these on the Command Center VM (`~/adcc-command-center` is the app checkout).
+Prereqs (once): add a DNS `A` record `tulip.itikad.site` → the VM's public IP
+(same IP as `itikad.site`), and confirm the cloud firewall exposes only 80/443
+(Tulip's port 3000 must not be public — Caddy reaches it internally).
 
-1. **DNS.** Add an `A` record `tulip.itikad.site` → the VM's public IP (same IP
-   as `itikad.site`). Caddy obtains the TLS cert automatically once this resolves.
+Then, on the Command Center VM over SSH:
 
-2. **Firewall.** Confirm the cloud firewall (Azure NSG / UFW) exposes only
-   **80 and 443** to the public internet. Tulip's port 3000 must NOT be public —
-   it is reached only through Caddy. (Basic auth is the second layer.)
+```bash
+cd ~/adcc-command-center && git pull && bash deploy/tulip/setup.sh
+```
 
-3. **Get Tulip and apply our overrides.**
-   ```bash
-   cd ~
-   git clone https://github.com/OpenAttackDefenseTools/tulip.git
-   cd tulip
-   cp ~/adcc-command-center/deploy/tulip/tulip.env.example .env
-   cp ~/adcc-command-center/deploy/tulip/configurations.py.example services/api/configurations.py
-   # edit .env and configurations.py later with the real game values
-   ```
+`setup.sh` clones Tulip, applies the fixes below, starts it (resource-tuned),
+and publishes `https://tulip.itikad.site` (user: `team`). It is idempotent.
 
-4. **Start Tulip (tuned).**
-   ```bash
-   docker compose \
-     -f docker-compose.yml \
-     -f ~/adcc-command-center/deploy/tulip/docker-compose.override.yml \
-     up -d --build
-   # sanity check from the host: should return HTML
-   curl -sS http://127.0.0.1:3000 | head -c 200
-   ```
+What it handles for you (each was a real gotcha):
+- Tulip's complete `.env` (the partial template missed `TRAFFIC_DIR_DOCKER`).
+- Patches the timescale image to build without `clang-19` (`with_llvm=no`).
+- Leaves `services/api/configurations.py` as upstream (webservice.py imports many
+  names from it) — you edit it in place on game day.
+- Drops in the gated Caddy site and restarts Caddy (validated first).
 
-5. **Publish it through Caddy (gated).** Generate a password hash and drop the
-   site file into the Command Center's Caddy `conf.d` volume:
-   ```bash
-   cd ~/adcc-command-center
-   # pick a strong shared password; this prints a $2a$... hash
-   docker compose exec web caddy hash-password --plaintext 'YOUR-STRONG-PASSWORD'
+<details><summary>Manual equivalent (reference)</summary>
 
-   # write the drop-in (replace the hash), then reload Caddy
-   cp deploy/tulip/tulip.caddy.example /tmp/tulip.caddy
-   #   edit /tmp/tulip.caddy: paste the hash after "team", confirm the hostname
-   docker compose cp /tmp/tulip.caddy web:/etc/caddy/conf.d/tulip.caddy
-   docker compose exec web caddy reload --config /etc/caddy/Caddyfile
-   ```
-   Visit **https://tulip.itikad.site** — you should get a basic-auth prompt, then
-   the Tulip UI. The sidebar link now works for the whole team.
+```bash
+cd ~ && git clone https://github.com/OpenAttackDefenseTools/tulip.git && cd tulip
+sed -i 's/make USE_PGXS=1 install/make USE_PGXS=1 with_llvm=no install/g' services/timescale/Dockerfile
+cp .env.example .env
+docker compose -f docker-compose.yml -f ~/adcc-command-center/deploy/tulip/docker-compose.override.yml up -d --build
+cd ~/adcc-command-center
+docker compose cp deploy/tulip/tulip.caddy.example web:/etc/caddy/conf.d/tulip.caddy
+docker compose exec -T web caddy validate --config /etc/caddy/Caddyfile && docker compose restart web
+```
+</details>
 
-   To take it down later: `docker compose exec web rm /etc/caddy/conf.d/tulip.caddy && docker compose exec web caddy reload --config /etc/caddy/Caddyfile`.
+To take it down later: `docker compose exec web rm /etc/caddy/conf.d/tulip.caddy && docker compose restart web` (and `docker compose -f ~/tulip/docker-compose.yml down` to stop Tulip).
 
 ## On game day
 
