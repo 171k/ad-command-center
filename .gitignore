@@ -40,3 +40,6 @@ frontend/.vite/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Tulip config control-plane artifacts (host-specific, runtime)
+control/

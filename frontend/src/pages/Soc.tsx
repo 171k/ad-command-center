@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  LayoutDashboard, ShieldAlert, ListFilter, RadioTower, BookOpen, Upload, Send, Trash2, Antenna,
+  LayoutDashboard, ShieldAlert, ListFilter, RadioTower, BookOpen, Upload, Send, Trash2, Antenna, Flower2,
 } from "lucide-react";
+import { TulipConfig } from "../components/TulipConfig";
 import { get, post } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { PageBody, PageHeader } from "../components/Page";
@@ -26,6 +27,7 @@ export function Soc() {
           { id: "sensors", label: <T i={RadioTower}>Sensors</T> },
           { id: "capture", label: <T i={Antenna}>Capture & IR</T> },
           { id: "setup", label: <T i={BookOpen}>Setup</T> },
+          { id: "tulip", label: <T i={Flower2}>Tulip</T> },
         ]} />
         <HowToUse page="soc" className="mb-1.5" />
       </div>
@@ -36,6 +38,7 @@ export function Soc() {
         {tab === "sensors" && <Sensors />}
         {tab === "capture" && <CaptureIR />}
         {tab === "setup" && <Setup />}
+        {tab === "tulip" && <TulipConfig />}
       </PageBody>
     </>
   );

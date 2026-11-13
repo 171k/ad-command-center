@@ -20,8 +20,12 @@ services:
       ADCC_ALLOWED_HOSTS: ${ADCC_ALLOWED_HOSTS:-*}
       ADCC_MAX_EVENTS: ${ADCC_MAX_EVENTS:-500000}
       ADCC_EVENT_RETENTION_DAYS: ${ADCC_EVENT_RETENTION_DAYS:-14}
+      # Shared control dir for the Tulip config plane (the host agent watches it).
+      ADCC_CONTROL_DIR: /control
     volumes:
       - adcc-data:/data
+      # The app only writes JSON here; the host agent does the Docker rebuild.
+      - ./control:/control
     expose:
       - "8000"
     # Not published to the host: only the reverse proxy reaches it.
