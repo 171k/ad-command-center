@@ -70,6 +70,15 @@ To take it down later: `docker compose exec web rm /etc/caddy/conf.d/tulip.caddy
    (filtered to your service ports, SSH excluded), sets `PCAP_OVER_IP` in Tulip's
    `.env`, and restarts the assembler. Tulip must be able to reach the vulnbox.
 
+   **If the vulnbox has no tcpdump** the script copes automatically: it tries
+   `apt-get install tcpdump socat`, and if that can't run (air-gapped box, no
+   apt) it scp's a zero-dependency Python sniffer (`deploy/tulip/pcap-over-ip.py`)
+   and runs it — that needs only `python3` + root, no tcpdump, no libpcap. For
+   the whole box, answer the interface prompt `any` and leave ports blank. As a
+   last resort (no tcpdump *and* no python3), scp a static tcpdump binary to the
+   vulnbox and run it manually into socat. Lock the broker to your Tulip host's
+   IP at the prompt so opponents can't siphon your traffic.
+
    Or do it manually (pick one):
    - **File mode:** on the vulnbox, run a rotating capture and copy pcaps into
      Tulip's `TRAFFIC_DIR_HOST` (the assembler picks them up via inotify):
