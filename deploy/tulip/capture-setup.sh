@@ -57,22 +57,39 @@ SSH="sshpass -e ssh $SSHO -p $SSH_PORT $SSH_USER@$VULN_IP"
 SCP="sshpass -e scp $SSHO -P $SSH_PORT"
 
 echo "=== [1/3] probing the vulnbox ($VULN_IP) ==="
-AVAIL="$($SSH 'for t in tcpdump socat python3 apt-get; do command -v $t >/dev/null 2>&1 && echo $t; done' || true)"
+PROBE="$($SSH 'for t in tcpdump socat python3 python2 python apt-get; do command -v $t >/dev/null 2>&1 && echo $t; done; echo ARCH=$(uname -m)' || true)"
+AVAIL="$(printf '%s\n' "$PROBE" | grep -v '^ARCH=')"
+ARCH="$(printf '%s\n' "$PROBE" | sed -n 's/^ARCH=//p')"; ARCH="${ARCH:-x86_64}"
 has() { printf '%s\n' "$AVAIL" | grep -qx "$1"; }
-echo "  available: $(printf '%s ' $AVAIL)"
+echo "  available: $(printf '%s ' $AVAIL) (arch $ARCH)"
 
 if { ! has tcpdump || ! has socat; } && has apt-get; then
   echo "  trying to install tcpdump+socat via apt (needs internet on the vulnbox)…"
   $SSH 'export DEBIAN_FRONTEND=noninteractive; (sudo apt-get update -qq && sudo apt-get install -y -qq tcpdump socat) || (apt-get update -qq && apt-get install -y -qq tcpdump socat)' >/dev/null 2>&1 || true
-  AVAIL="$($SSH 'for t in tcpdump socat python3; do command -v $t >/dev/null 2>&1 && echo $t; done' || true)"
+  AVAIL="$($SSH 'for t in tcpdump socat python3 python2 python; do command -v $t >/dev/null 2>&1 && echo $t; done' || true)"
 fi
+
+# Resolve a socat command (target's, or our shipped static one) and a python
+# command (target's, or our shipped static one), scp'ing binaries as needed.
+scp_bin() { # <repo-bin-basename> <remote-path>
+  local f="$HERE/bin/$1-$ARCH"
+  [ -f "$f" ] || return 1
+  echo "  shipping $1-$ARCH -> vulnbox" >&2
+  $SCP "$f" "$SSH_USER@$VULN_IP:$2" >/dev/null && $SSH "chmod +x $2" && return 0
+  return 1
+}
+SOCAT_CMD=""; PY_CMD=""
+if has socat; then SOCAT_CMD="socat"; elif scp_bin socat /tmp/socat; then SOCAT_CMD="/tmp/socat"; fi
+if has python3; then PY_CMD="python3"
+elif has python2; then PY_CMD="python2"
+elif has python; then PY_CMD="python"
+elif scp_bin python2.7 /tmp/pyx; then PY_CMD="/tmp/pyx"; fi
 
 echo "=== [2/3] starting the capture broker ==="
 RANGE=""; [ -n "$ALLOW_IP" ] && RANGE=",range=$ALLOW_IP/32"
-if has tcpdump && has socat; then
-  MODE="tcpdump + socat"
-  export IFACE BPF BROKER_PORT RANGE
-  $SSH "IFACE='$IFACE' BPF='$BPF' BROKER_PORT='$BROKER_PORT' RANGE='$RANGE' bash -s" <<'REMOTE'
+if has tcpdump && [ -n "$SOCAT_CMD" ]; then
+  MODE="tcpdump + socat ($SOCAT_CMD)"
+  $SSH "IFACE='$IFACE' BPF='$BPF' BROKER_PORT='$BROKER_PORT' RANGE='$RANGE' SOCAT='$SOCAT_CMD' bash -s" <<'REMOTE'
 set -e
 SUDO=""; [ "$(id -u)" = 0 ] || SUDO="sudo"
 cat > /tmp/tulip-capture.sh <<WRAP
@@ -81,27 +98,27 @@ exec $SUDO tcpdump -i "$IFACE" -w - -U -n -s 0 "$BPF"
 WRAP
 chmod +x /tmp/tulip-capture.sh
 pkill -f "TCP-LISTEN:$BROKER_PORT" 2>/dev/null || true; sleep 1
-setsid socat "TCP-LISTEN:$BROKER_PORT,fork,reuseaddr$RANGE" EXEC:/tmp/tulip-capture.sh >/tmp/tulip-capture.log 2>&1 < /dev/null &
+setsid "$SOCAT" "TCP-LISTEN:$BROKER_PORT,fork,reuseaddr$RANGE" EXEC:/tmp/tulip-capture.sh >/tmp/tulip-capture.log 2>&1 < /dev/null &
 sleep 1
 pgrep -f "TCP-LISTEN:$BROKER_PORT" >/dev/null && echo "broker up ($BROKER_PORT)" || { echo FAILED; cat /tmp/tulip-capture.log; exit 1; }
 REMOTE
-elif has python3; then
-  MODE="python3 sniffer (no tcpdump needed)"
-  echo "  tcpdump/socat unavailable — shipping the zero-dependency Python sniffer"
+elif [ -n "$PY_CMD" ]; then
+  MODE="python sniffer ($PY_CMD, no tcpdump needed)"
   $SCP "$HERE/pcap-over-ip.py" "$SSH_USER@$VULN_IP:/tmp/pcap-over-ip.py" >/dev/null
   ALLOW_ARG=""; [ -n "$ALLOW_IP" ] && ALLOW_ARG="--allow-ip $ALLOW_IP"
-  $SSH "IFACE='$IFACE' BROKER_PORT='$BROKER_PORT' ARGS='$EXCL_ARGS $INCL_ARGS $ALLOW_ARG' bash -s" <<'REMOTE'
+  $SSH "IFACE='$IFACE' BROKER_PORT='$BROKER_PORT' PY='$PY_CMD' ARGS='$EXCL_ARGS $INCL_ARGS $ALLOW_ARG' bash -s" <<'REMOTE'
 set -e
 SUDO=""; [ "$(id -u)" = 0 ] || SUDO="sudo"
 pkill -f pcap-over-ip.py 2>/dev/null || true; sleep 1
-setsid $SUDO python3 /tmp/pcap-over-ip.py --port $BROKER_PORT --iface $IFACE $ARGS >/tmp/tulip-capture.log 2>&1 < /dev/null &
+setsid $SUDO "$PY" /tmp/pcap-over-ip.py --port $BROKER_PORT --iface $IFACE $ARGS >/tmp/tulip-capture.log 2>&1 < /dev/null &
 sleep 2
 pgrep -f pcap-over-ip.py >/dev/null && echo "python broker up ($BROKER_PORT)" || { echo FAILED; cat /tmp/tulip-capture.log; exit 1; }
 REMOTE
 else
-  echo "ERROR: vulnbox has no tcpdump/socat and no python3, and no apt to install." >&2
-  echo "Fix: briefly give it internet (apt-get install tcpdump socat), or scp a STATIC" >&2
-  echo "tcpdump binary and run it manually (see deploy/tulip/README.md)." >&2
+  echo "ERROR: vulnbox has no usable capture backend (no tcpdump+socat, no python)." >&2
+  echo "This is likely a non-x86_64 box with nothing installed. Options: give it" >&2
+  echo "internet briefly (apt-get install tcpdump socat), or add a matching static" >&2
+  echo "binary under deploy/tulip/bin/ for arch '$ARCH'. See deploy/tulip/README.md." >&2
   exit 1
 fi
 echo "  capture backend: $MODE"

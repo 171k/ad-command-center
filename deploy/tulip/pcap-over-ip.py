@@ -24,8 +24,8 @@ ETH_P_ALL = 0x0003
 PCAP_GLOBAL = struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1)  # LINKTYPE_ETHERNET
 
 
-def _ports(frame: bytes):
-    """Return (src_port, dst_port) for IPv4 TCP/UDP, else None."""
+def _ports(frame):
+    """Return (src_port, dst_port) for IPv4 TCP/UDP, else None. py2+py3."""
     if len(frame) < 14:
         return None
     etype = struct.unpack("!H", frame[12:14])[0]
@@ -50,7 +50,7 @@ def _ports(frame: bytes):
     return sport, dport
 
 
-def _keep(frame: bytes, exclude: set, include: set) -> bool:
+def _keep(frame, exclude, include):
     pr = _ports(frame)
     if pr is None:
         return not include  # non-TCP/UDP: keep only when not restricting to ports
@@ -90,7 +90,7 @@ def serve_client(conn, addr, args, exclude, include):
             conn.close()
         except Exception:
             pass
-    sys.stderr.write(f"client {addr} disconnected\n")
+    sys.stderr.write("client %s disconnected\n" % (addr,))
 
 
 def main():
@@ -108,12 +108,12 @@ def main():
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("0.0.0.0", args.port))
     srv.listen(8)
-    sys.stderr.write(f"pcap-over-ip on :{args.port} iface={args.iface} "
-                     f"exclude={sorted(exclude)} include={sorted(include)}\n")
+    sys.stderr.write("pcap-over-ip on :%s iface=%s exclude=%s include=%s\n"
+                     % (args.port, args.iface, sorted(exclude), sorted(include)))
     while True:
         conn, addr = srv.accept()
         if args.allow_ip and addr[0] != args.allow_ip:
-            sys.stderr.write(f"refused {addr[0]} (only {args.allow_ip} allowed)\n")
+            sys.stderr.write("refused %s (only %s allowed)\n" % (addr[0], args.allow_ip))
             conn.close()
             continue
         threading.Thread(target=serve_client, args=(conn, addr, args, exclude, include),

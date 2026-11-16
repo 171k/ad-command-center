@@ -1,0 +1,5 @@
+# Static x86_64 binaries from github.com/andrew-d/static-binaries (musl, stripped).
+# Verify with: sha256sum -c SHA256SUMS
+71c81cb46dd1903f12f3aef844b0fc559f31e2f613a8ae91ffb5630bc7011ef5  socat-x86_64
+# Optional (not vendored; fetched by fetch-static-bins.sh):
+# 7380f2014a705e6b4cf0ab7614a1eea440cf7eab6093767921aa881a4219818b  python2.7-x86_64
