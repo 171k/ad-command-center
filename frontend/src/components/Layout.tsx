@@ -22,6 +22,17 @@ const SECONDARY = [
   { to: "/settings", label: "Settings", icon: Cog },
 ];
 
+// Tools run as their own services. On a public deploy they sit on a subdomain
+// (tulip.<domain>); locally they are on their own ports on this host.
+export function toolUrl(sub: string, port: number): string {
+  if (typeof window === "undefined") return `https://${sub}.itikad.site`;
+  const h = window.location.hostname;
+  if (h === "localhost" || h === "127.0.0.1" || h.endsWith(".local") || /^\d+\.\d+\.\d+\.\d+$/.test(h)) {
+    return `http://${h}:${port}`;
+  }
+  return `https://${sub}.${h}`;
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   useLiveSync();
   const { username, logout } = useAuth();
@@ -93,7 +104,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* External: Tulip traffic-analysis dashboard (separate service, opens in a new tab). */}
           <a
-            href="https://tulip.itikad.site"
+            href={toolUrl("tulip", 3000)}
             target="_blank"
             rel="noreferrer"
             title="Tulip — traffic analysis (opens in a new tab)"
@@ -106,7 +117,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {/* External: Destructive Farm exploit farm (separate service, new tab). */}
           <a
-            href="https://df.itikad.site"
+            href={toolUrl("df", 5000)}
             target="_blank"
             rel="noreferrer"
             title="Destructive Farm — exploit farm (opens in a new tab)"
