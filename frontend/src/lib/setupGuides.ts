@@ -83,7 +83,7 @@ export const GUIDES: Guide[] = [
       { label: "One-command setup — run on the iHack server over SSH", cmd: "cd ~/adcc-command-center && git pull && bash deploy/tulip/setup.sh", note: "Clones Tulip, applies the resource + toolchain fixes, starts it, and publishes https://tulip.itikad.site (user: team). Idempotent — safe to re-run." },
       { label: "Open it", note: "Click Tulip in the sidebar or go to https://tulip.itikad.site. Login user is 'team'." },
       { label: "Game day — set the real values", note: "Edit ~/tulip/.env (TICK_START, TICK_LENGTH, FLAG_REGEX, VM_IP, TEAM_ID) and the service list in ~/tulip/services/api/configurations.py, then rebuild the api: docker compose -f ~/tulip/docker-compose.yml -f ~/adcc-command-center/deploy/tulip/docker-compose.override.yml up -d --build api" },
-      { label: "Game day — feed it traffic", note: "On the vulnbox, capture with tcpdump and copy the pcaps into ~/tulip/<TRAFFIC_DIR_HOST>, or stream via PCAP-over-IP. The assembler picks them up automatically. See deploy/tulip/README.md." },
+      { label: "Game day — feed it traffic (one command)", cmd: "bash deploy/tulip/capture-setup.sh", note: "Run where your local Tulip is, on the game network. It asks for the vulnbox IP + SSH password, starts a tcpdump->socat PCAP-over-IP broker on the vulnbox (filtered to your service ports, SSH excluded), and links it into Tulip. Tulip must be able to reach the vulnbox. Manual file/stream options are in deploy/tulip/README.md." },
     ],
     verify: "curl -sS -o /dev/null -w '%{http_code}\\n' https://tulip.itikad.site   # 401 = login required = working",
     troubleshoot: [

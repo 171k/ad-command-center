@@ -61,7 +61,16 @@ To take it down later: `docker compose exec web rm /etc/caddy/conf.d/tulip.caddy
    - `.env`: `TICK_START`, `TICK_LENGTH`, `FLAG_REGEX`, `VM_IP`, `TEAM_ID`.
    - `services/api/configurations.py`: the service list → `docker compose up -d --build api`.
 
-2. **Feed it traffic** (pick one):
+2. **Feed it traffic.** Easiest: the one-command capture linker (run it where
+   your local Tulip is, on the game network):
+   ```bash
+   bash deploy/tulip/capture-setup.sh   # asks for vulnbox IP + SSH password
+   ```
+   It SSHes to the vulnbox, starts a `tcpdump`→`socat` PCAP-over-IP broker
+   (filtered to your service ports, SSH excluded), sets `PCAP_OVER_IP` in Tulip's
+   `.env`, and restarts the assembler. Tulip must be able to reach the vulnbox.
+
+   Or do it manually (pick one):
    - **File mode:** on the vulnbox, run a rotating capture and copy pcaps into
      Tulip's `TRAFFIC_DIR_HOST` (the assembler picks them up via inotify):
      ```bash
