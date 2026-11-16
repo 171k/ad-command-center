@@ -70,6 +70,24 @@ To take it down later: `docker compose exec web rm /etc/caddy/conf.d/tulip.caddy
    (filtered to your service ports, SSH excluded), sets `PCAP_OVER_IP` in Tulip's
    `.env`, and restarts the assembler. Tulip must be able to reach the vulnbox.
 
+   **If the vulnbox is bare**, the script auto-selects a backend and ships what's
+   missing (nothing to do by hand):
+   1. vulnbox's own `tcpdump` + `socat`, else
+   2. `apt-get install` them (if it has internet), else
+   3. **scp our vendored static `socat`** (`deploy/tulip/bin/socat-x86_64`) and/or
+      the **zero-dependency Python sniffer** (`pcap-over-ip.py`, needs only a
+      python on the box — py2 or py3), else
+   4. if the box has **no python at all**, scp a **static python** too — run
+      `bash deploy/tulip/fetch-static-bins.sh` once (with internet, pre-game) to
+      put it in `deploy/tulip/bin/`.
+
+   So a vulnbox with no tcpdump — even air-gapped — still works; the Python
+   sniffer replaces tcpdump (raw-socket capture, serves the pcap stream itself).
+   For the whole box, answer the interface prompt `any` and leave ports blank.
+   Bundled binaries are x86_64; for another arch, drop a matching static binary
+   in `deploy/tulip/bin/` (named `socat-<arch>` / `python2.7-<arch>`). Lock the
+   broker to your Tulip host's IP at the prompt so opponents can't siphon traffic.
+
    Or do it manually (pick one):
    - **File mode:** on the vulnbox, run a rotating capture and copy pcaps into
      Tulip's `TRAFFIC_DIR_HOST` (the assembler picks them up via inotify):

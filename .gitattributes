@@ -3,3 +3,6 @@
 *.jpg binary
 *.ico binary
 *.pcap binary
+
+# Vendored static tool binaries (never line-ending convert)
+deploy/tulip/bin/** binary
