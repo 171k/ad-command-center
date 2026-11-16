@@ -29,18 +29,23 @@ sed -i "s/'SERVER_PASSWORD': *'[^']*'/'SERVER_PASSWORD': '$DF_PW'/" server/confi
 echo "==> [3/4] build + start"
 docker compose up -d --build
 
-echo "==> [4/4] publish behind Caddy (validated before restart)"
-cd "$ADCC"
-docker compose cp "$HERE/df.caddy.example" web:/etc/caddy/conf.d/df.caddy
-if docker compose exec -T web caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
-  docker compose restart web
+if [ "${ADCC_LOCAL:-0}" = "1" ]; then
+  echo "==> [4/4] local mode — skipping the public Caddy/TLS publish"
+  echo
+  echo "Destructive Farm is up (local). http://localhost:5000"
 else
-  echo "!! Caddy config invalid — removing drop-in, not restarting" >&2
-  docker compose exec -T web rm -f /etc/caddy/conf.d/df.caddy || true
-  exit 1
+  echo "==> [4/4] publish behind Caddy (validated before restart)"
+  cd "$ADCC"
+  docker compose cp "$HERE/df.caddy.example" web:/etc/caddy/conf.d/df.caddy
+  if docker compose exec -T web caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+    docker compose restart web
+  else
+    echo "!! Caddy config invalid — removing drop-in, not restarting" >&2
+    docker compose exec -T web rm -f /etc/caddy/conf.d/df.caddy || true
+    exit 1
+  fi
+  echo
+  echo "Destructive Farm is up. https://df.itikad.site"
 fi
-
-echo
-echo "Destructive Farm is up. https://df.itikad.site"
 echo "Login: any username + the farm password."
 docker compose -f "$DF_DIR/docker-compose.yml" ps --format "  {{.Name}}\t{{.Status}}" 2>/dev/null || true

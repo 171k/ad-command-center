@@ -21,8 +21,10 @@ services:
       ADCC_SECRET_KEY: ${ADCC_SECRET_KEY:-offline-local-change-me-0000000000000000000000}
       ADCC_COOKIE_SECURE: "false"        # plain HTTP on localhost
       ADCC_ALLOWED_HOSTS: "*"            # localhost only; not internet-exposed
+      ADCC_CONTROL_DIR: /control         # shared with the local Tulip control agent
     volumes:
       - adcc-offline-data:/data
+      - ./control:/control               # app writes config; host agent rebuilds Tulip
     expose:
       - "8000"
     deploy:

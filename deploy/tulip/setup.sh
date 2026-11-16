@@ -33,19 +33,24 @@ echo "==> [3/5] config (full upstream .env; keep upstream configurations.py)"
 echo "==> [4/5] build + start (resource-tuned for this VM)"
 docker compose -f docker-compose.yml -f "$OVR" up -d --build
 
-echo "==> [5/5] publish behind Caddy (validated before restart)"
-cd "$ADCC"
-docker compose cp "$ADCC/deploy/tulip/tulip.caddy.example" web:/etc/caddy/conf.d/tulip.caddy
-if docker compose exec -T web caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
-  docker compose restart web
+if [ "${ADCC_LOCAL:-0}" = "1" ]; then
+  echo "==> [5/5] local mode — skipping the public Caddy/TLS publish"
+  echo
+  echo "Tulip is up (local). http://localhost:3000"
 else
-  echo "!! Caddy config invalid — removing drop-in, not restarting" >&2
-  docker compose exec -T web rm -f /etc/caddy/conf.d/tulip.caddy || true
-  exit 1
+  echo "==> [5/5] publish behind Caddy (validated before restart)"
+  cd "$ADCC"
+  docker compose cp "$ADCC/deploy/tulip/tulip.caddy.example" web:/etc/caddy/conf.d/tulip.caddy
+  if docker compose exec -T web caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1; then
+    docker compose restart web
+  else
+    echo "!! Caddy config invalid — removing drop-in, not restarting" >&2
+    docker compose exec -T web rm -f /etc/caddy/conf.d/tulip.caddy || true
+    exit 1
+  fi
+  echo
+  echo "Tulip is up. https://tulip.itikad.site  (user: team)"
 fi
-
-echo
-echo "Tulip is up. https://tulip.itikad.site  (user: team)"
 echo "Containers:"
 cd "$TULIP_DIR"
 docker compose -f docker-compose.yml -f "$OVR" ps --format "  {{.Name}}\t{{.Status}}"

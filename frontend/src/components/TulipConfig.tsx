@@ -5,6 +5,7 @@ import { get, post } from "../lib/api";
 import { useToast } from "../lib/toast";
 import { useAuth } from "../lib/auth";
 import { Badge, Panel, Spinner } from "./ui";
+import { toolUrl } from "./Layout";
 
 type Svc = { name: string; ip: string; port: number | string };
 type Cfg = {
@@ -57,7 +58,7 @@ export function TulipConfig() {
         <div className="px-3 h-11 flex items-center gap-2 border-b border-line">
           <Flower2 className="h-4 w-4 text-accent" />
           <span className="text-sm font-medium">Tulip configuration</span>
-          <a href="https://tulip.itikad.site" target="_blank" rel="noreferrer" className="text-2xs text-accent hover:underline ml-1">open dashboard</a>
+          <a href={toolUrl("tulip", 3000)} target="_blank" rel="noreferrer" className="text-2xs text-accent hover:underline ml-1">open dashboard</a>
           <span className="ml-auto flex items-center gap-2">
             <Badge className={meta.cls}>{meta.label}</Badge>
             <button className="btn btn-ghost btn-sm" title="Refresh status" onClick={() => status.refetch()}><RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} /></button>
